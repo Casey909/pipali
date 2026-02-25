@@ -797,8 +797,8 @@ export class ResearchPausedError extends Error {
     }
 }
 
-/** Maximum retries per task run when the model returns no tool calls and no message */
-const MAX_EMPTY_RESPONSE_RETRIES = 2;
+/** Maximum retries per task run for recoverable errors (malformed output, API errors, empty responses) */
+const MAX_RETRY_WARNINGS = 2;
 
 /**
  * Main research function - iterates through tool calls until completion
@@ -807,7 +807,8 @@ const MAX_EMPTY_RESPONSE_RETRIES = 2;
 export async function* research(config: ResearchConfig): AsyncGenerator<ResearchIteration> {
     const iterationThreshold = Math.floor(config.maxIterations * 0.9) - 1;
     let thresholdStepCount: number | undefined = config.thresholdStepCount;
-    let emptyResponseRetries = 0;
+    let retryWarnings = 0;
+    let lastWarning = '';
 
     for (let i = 0; i < config.maxIterations; i++) {
         // Check if paused before starting new iteration
@@ -822,9 +823,22 @@ export async function* research(config: ResearchConfig): AsyncGenerator<Research
 
         const iteration = await pickNextTool({ ...config, currentIteration: i, thresholdStepCount });
 
-        // Handle warnings first (e.g., invalid JSON in tool arguments) - feed back to model for retry
+        // Handle warnings (e.g., invalid JSON in tool arguments, API errors) - feed back to model for retry
         // Must check before empty tool calls check, since warnings with no valid tool calls should continue loop
         if (iteration.warning) {
+            if (iteration.warning === lastWarning) {
+                retryWarnings++;
+            } else {
+                retryWarnings = 1;
+                lastWarning = iteration.warning;
+            }
+            if (retryWarnings > MAX_RETRY_WARNINGS) {
+                log.error({ attempt: retryWarnings, warning: iteration.warning }, 'Too many retry warnings, stopping research');
+                iteration.message = iteration.warning;
+                iteration.toolCalls = [];
+                yield iteration;
+                break;
+            }
             // Create a synthetic observation to feed the warning back to the model
             const syntheticCallId = `warning-${Date.now()}`;
             iteration.toolCalls = [{
@@ -851,10 +865,10 @@ export async function* research(config: ResearchConfig): AsyncGenerator<Research
 
         // Retry if model returned no message or tool call (only reasoning/thought)
         // This handles cases where the LLM produces malformed output with no parseable response
-        if (iteration.toolCalls.length === 0 && !iteration.message && emptyResponseRetries < MAX_EMPTY_RESPONSE_RETRIES) {
-            emptyResponseRetries++;
+        if (iteration.toolCalls.length === 0 && !iteration.message && retryWarnings < MAX_RETRY_WARNINGS) {
+            retryWarnings++;
             log.warn(
-                { attempt: emptyResponseRetries, maxRetries: MAX_EMPTY_RESPONSE_RETRIES, hasThought: !!iteration.thought, rawOutputTypes: iteration.raw?.map((item: any) => item.type) },
+                { attempt: retryWarnings, maxRetries: MAX_RETRY_WARNINGS, hasThought: !!iteration.thought, rawOutputTypes: iteration.raw?.map((item: any) => item.type) },
                 'Model returned no tool calls and no message, retrying'
             );
 
@@ -884,8 +898,9 @@ export async function* research(config: ResearchConfig): AsyncGenerator<Research
         // Stop research if no tool calls (model wants to respond directly)
         if (iteration.toolCalls.length === 0) {
             yield iteration;
-            // Reset retry counter on successful response
-            emptyResponseRetries = 0;
+            // Reset retry counters on successful response
+            retryWarnings = 0;
+            lastWarning = '';
             // Check if paused after yielding final response
             // This prevents sending 'complete' if interrupt arrived during model generation
             if (config.abortSignal?.aborted) {
