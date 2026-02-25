@@ -1513,11 +1513,11 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
         }));
     }, []);
 
-    const fork = useCallback((message: string, sourceConversationId: string) => {
+    const fork = useCallback((message: string, sourceConversationId: string, options?: { clientMessageId?: string; runId?: string }) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-        const clientMessageId = generateUUID();
-        const runId = generateUUID();
+        const clientMessageId = options?.clientMessageId ?? generateUUID();
+        const runId = options?.runId ?? generateUUID();
 
         wsRef.current.send(JSON.stringify({
             type: 'fork',

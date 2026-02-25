@@ -1341,7 +1341,7 @@ const App = () => {
         // If we have a conversationId, fork it (includes chat history)
         // Otherwise, create a new conversation from scratch
         if (conversationId) {
-            fork(fullMessage, conversationId);
+            fork(fullMessage, conversationId, { clientMessageId, runId });
         } else {
             // No conversationId - create new conversation from scratch
             sendWsMessage(fullMessage, undefined, { clientMessageId, runId, optimistic: false });
