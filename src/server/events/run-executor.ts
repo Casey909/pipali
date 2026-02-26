@@ -18,6 +18,7 @@ import { isFirstRunEasterEgg, maxIterations as defaultMaxIterations } from '../u
 import { setSessionActive, setSessionInactive, updateSessionReasoning } from '../sessions';
 import { createConfirmationCallback } from '../routes/ws/confirmation-manager';
 import { createChildLogger } from '../logger';
+import { getServer } from '../server-instance';
 
 const log = createChildLogger({ component: 'run-executor' });
 
@@ -143,13 +144,18 @@ export async function executeRun(options: ExecuteRunOptions): Promise<void> {
             runHandle.runId = runIdAuthoritative;
         }
 
-        bus.publish({
-            type: 'run_started',
+        const runStartedEvent = {
+            type: 'run_started' as const,
             conversationId,
             runId: runIdAuthoritative,
             clientMessageId: runHandle.clientMessageId,
             ...(suggestedRunIdOverride ? { suggestedRunId: suggestedRunIdOverride } : {}),
-        });
+        };
+        bus.publish(runStartedEvent);
+
+        // Broadcast to all connected clients so the home page discovers new runs
+        // without requiring navigation or polling.
+        getServer()?.publish('runs', JSON.stringify(runStartedEvent));
 
         setSessionActive(conversationId);
 

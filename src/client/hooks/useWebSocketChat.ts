@@ -486,6 +486,13 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             // Update conversation states
             const conversationStates = new Map(state.conversationStates);
             const existing = conversationStates.get(conversationId);
+
+            // Deduplicate: global broadcast + per-conversation bus can both deliver
+            // run_started for the same run. Skip if already processing this run.
+            if (existing?.isProcessing && findRunAssistantIndex(existing.messages || [], runId) !== -1) {
+                return state;
+            }
+
             let messages = isCurrentConversation ? state.messages : (existing?.messages || []);
 
             // If history was loaded mid-run, we may have an extra history-derived assistant tail

@@ -185,6 +185,7 @@ export const websocketHandler = {
 
     open(ws: ServerWebSocket<WebSocketData>) {
         log.info('Client connected');
+        ws.subscribe('runs');
         getConnectionContext(ws);
     },
 
