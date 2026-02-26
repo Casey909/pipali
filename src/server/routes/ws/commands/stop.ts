@@ -9,6 +9,7 @@ import type { Command, CommandContext } from './index';
 import type { ClientMessage, StopCommand } from '../message-types';
 import { getBus } from '../../../events/conversation-event-bus';
 import { rejectAllConfirmations } from '../confirmation-manager';
+import { setSessionInactive } from '../../../sessions/activeSessionsStore';
 import { createChildLogger } from '../../../logger';
 
 const log = createChildLogger({ component: 'stop-command' });
@@ -49,5 +50,10 @@ export const StopCommandHandler: Command<StopCommand> = {
         runHandle.queuedMessages = [];
         runHandle.abortController.abort();
         rejectAllConfirmations(runHandle, 'Research stopped');
+
+        // Immediately mark as inactive so refresh/observe sees no active run.
+        // The run-executor will call these again when it catches the abort — both are idempotent.
+        setSessionInactive(conversationId);
+        bus.activeRun = null;
     },
 };
