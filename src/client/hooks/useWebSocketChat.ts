@@ -75,6 +75,7 @@ export type ChatAction =
     | { type: 'CLEAR_COMPLETED'; conversationId: string }
     | { type: 'CLEAR_STOPPED'; conversationId: string }
     | { type: 'OBSERVE_ACTIVE_RUN'; conversationId: string; runId?: string; clientMessageId?: string }
+    | { type: 'OBSERVE_IDLE'; conversationId: string }
     | { type: 'MERGE_HISTORY'; conversationId: string; historyMessages: Message[] };
 
 export interface SendMessageOptions {
@@ -1147,6 +1148,33 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             return state;
         }
 
+        case 'OBSERVE_IDLE': {
+            // Server reported no active run — clear stale isProcessing from localStorage.
+            const { conversationId } = action;
+            const conversationStates = new Map(state.conversationStates);
+            const existing = conversationStates.get(conversationId);
+            if (!existing?.isProcessing) return state;
+
+            const messages = existing.messages.some(m => m.isStreaming)
+                ? existing.messages.map(m => m.isStreaming ? { ...m, isStreaming: false } : m)
+                : existing.messages;
+
+            conversationStates.set(conversationId, {
+                ...existing,
+                isProcessing: false,
+                messages,
+            });
+
+            const isCurrentConversation = conversationId === state.conversationId;
+            return {
+                ...state,
+                messages: isCurrentConversation ? messages : state.messages,
+                runStatus: isCurrentConversation ? 'idle' : state.runStatus,
+                currentRunId: isCurrentConversation ? undefined : state.currentRunId,
+                conversationStates,
+            };
+        }
+
         case 'MESSAGE_DELETED': {
             const { conversationId, role, stepId } = action;
             const isCurrentConversation = conversationId === state.conversationId;
@@ -1429,8 +1457,9 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
                         clientMessageId: message.clientMessageId,
                     });
                 } else {
-                    // If the server reports no active run, any locally persisted confirmations
-                    // for this conversation are stale (they're only relevant while the run is active).
+                    // Server says no active run — clear stale processing state from localStorage
+                    // and any persisted confirmations (only relevant while the run is active).
+                    dispatch({ type: 'OBSERVE_IDLE', conversationId: convId });
                     dispatch({ type: 'CLEAR_CONFIRMATIONS', conversationId: convId });
                 }
                 break;
