@@ -1,21 +1,24 @@
 /**
- * Pub-sub Reload Dedupe Regression Tests
+ * Reload Recovery Tests
  *
- * Repro:
- * - While a run is active, reloading the chat or home page can:
- *   1) Duplicate steps (history + replay events appended again)
- *   2) Re-show confirmations that were already acknowledged
- *
- * These tests lock in the expected behavior: reloads must not duplicate tool steps
- * or replay already-handled confirmations.
+ * Verifies that page state survives reloads:
+ * - Active run steps are not duplicated after chat or home reload
+ * - Acknowledged confirmations don't reappear
+ * - Task cards persist via localStorage hydration
+ * - Pending confirmation toasts reappear via observe + replay
  */
 
 import { test, expect, type Page } from '@playwright/test';
 import { ChatPage, HomePage } from '../helpers/page-objects';
 import { Selectors } from '../helpers/selectors';
+import { stopAllActiveRunsFromHome } from '../helpers/cleanup';
 
 function makeReproQuery(): string {
     return `repro pubsub reload ${Date.now()}`;
+}
+
+function uniqueQuery(base: string): string {
+    return `${base} [e2e-${Date.now()}-${Math.random().toString(16).slice(2, 8)}]`;
 }
 
 async function assertNoDuplicateThoughtMarkers(page: Page) {
@@ -31,11 +34,10 @@ async function assertNoDuplicateThoughtMarkers(page: Page) {
         await expect(page.locator(Selectors.thoughtItem, { hasText: marker })).toHaveCount(1);
     }
 
-    // Each iteration produces one rendered tool entry in the thoughts list.
     await expect(page.locator(Selectors.thoughtTool)).toHaveCount(markers.length);
 }
 
-test.describe('Pub-sub Reload Dedupe', () => {
+test.describe('Reload During Active Run', () => {
     test('chat reload mid-run does not duplicate steps or re-show acknowledged confirmation', async ({ page }) => {
         const reproQuery = makeReproQuery();
         const chatPage = new ChatPage(page);
@@ -88,11 +90,9 @@ test.describe('Pub-sub Reload Dedupe', () => {
         await expect(page.locator(Selectors.confirmationToast, { hasText: reproQuery })).toHaveCount(0, { timeout: 15000 });
 
         // Ensure the confirmation was actually acknowledged by the server
-        // (the task should move past "Needs Input" and progress beyond step 1).
         const firstCard = page.locator(Selectors.taskCard, { hasText: reproQuery }).first();
         await expect(firstCard).toBeVisible();
         await expect(firstCard.locator('.task-status-text.needs-input')).toHaveCount(0, { timeout: 15000 });
-        // Ensure it's still active (not completed immediately) so reload happens mid-run.
         await expect(firstCard.locator('.task-status-text.running')).toBeVisible({ timeout: 15000 });
 
         // Open the conversation (to capture the conversationId reliably)
@@ -102,7 +102,6 @@ test.describe('Pub-sub Reload Dedupe', () => {
         const conversationId = await chatPage.getConversationId();
         expect(conversationId).toBeTruthy();
 
-        // The previously acknowledged confirmation must not show up again in the conversation view
         await expect(chatPage.confirmationDialog).toHaveCount(0, { timeout: 5000 });
 
         // Navigate back to home, then reload the home page mid-run
@@ -123,5 +122,98 @@ test.describe('Pub-sub Reload Dedupe', () => {
 
         await chatPage.expandThoughts();
         await assertNoDuplicateThoughtMarkers(page);
+    });
+});
+
+test.describe('Task Card Persistence', () => {
+    test.afterEach(async ({ page }) => {
+        await stopAllActiveRunsFromHome(page);
+    });
+
+    test('running task card persists on home reload', async ({ page }) => {
+        const homePage = new HomePage(page);
+        await homePage.goto();
+
+        const query = uniqueQuery('run a pausable analysis');
+        await homePage.sendBackgroundMessage(query);
+        await homePage.waitForTaskWithTitle(query);
+
+        await page.waitForTimeout(500);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await homePage.waitForConnection();
+
+        await homePage.waitForTaskWithTitle(query);
+        const card = homePage.getTaskCardByTitle(query);
+        await expect(card).toBeVisible();
+        await expect(card.locator('.task-status-text.running')).toBeVisible();
+    });
+
+    test('completed task card persists on home reload', async ({ page }) => {
+        const chatPage = new ChatPage(page);
+        await chatPage.goto();
+
+        const query = uniqueQuery('list all files');
+        await chatPage.sendMessage(query);
+        await chatPage.waitForAssistantResponse();
+
+        await chatPage.goHome();
+
+        const homePage = new HomePage(page);
+        await homePage.waitForConnection();
+        await homePage.waitForTaskWithTitle(query);
+        await expect(homePage.getTaskCardByTitle(query).locator('.task-status-text.completed')).toBeVisible();
+
+        await page.waitForTimeout(500);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await homePage.waitForConnection();
+
+        await homePage.waitForTaskWithTitle(query);
+        await expect(homePage.getTaskCardByTitle(query).locator('.task-status-text.completed')).toBeVisible();
+    });
+});
+
+test.describe('Confirmation Persistence', () => {
+    test('pending confirmation toast persists on home reload', async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                if (!window.sessionStorage.getItem('__e2e_storage_cleared__')) {
+                    window.localStorage.clear();
+                    window.sessionStorage.clear();
+                    window.sessionStorage.setItem('__e2e_storage_cleared__', '1');
+                }
+            } catch {
+                // ignore
+            }
+        });
+
+        const reproQuery = makeReproQuery();
+        const homePage = new HomePage(page);
+        await homePage.goto();
+
+        await homePage.sendBackgroundMessage(reproQuery);
+        const taskCard = page.locator(Selectors.taskCard, { hasText: reproQuery });
+        await expect(taskCard).toBeVisible({ timeout: 15000 });
+
+        const toast = page.locator(Selectors.confirmationToast, { hasText: reproQuery });
+        await expect(toast.first()).toBeVisible({ timeout: 15000 });
+
+        // Reload while the run is blocked on confirmation
+        await page.waitForTimeout(250);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await homePage.waitForConnection();
+
+        // The pending confirmation should be visible again after reload
+        await expect(page.locator(Selectors.confirmationToast, { hasText: reproQuery }).first()).toBeVisible({ timeout: 15000 });
+
+        // Cleanup: decline so the run finishes
+        const noBtn = page
+            .locator(Selectors.confirmationToast, { hasText: reproQuery })
+            .first()
+            .locator('.toast-actions .toast-btn.danger');
+        await expect(noBtn).toBeVisible({ timeout: 15000 });
+        await noBtn.evaluate((el: HTMLElement) => el.click());
+        await expect(page.locator(Selectors.confirmationToast, { hasText: reproQuery })).toHaveCount(0, { timeout: 15000 });
+
+        await stopAllActiveRunsFromHome(page);
     });
 });

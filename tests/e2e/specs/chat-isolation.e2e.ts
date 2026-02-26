@@ -379,4 +379,42 @@ test.describe('Chat Isolation', () => {
         expect(originalCount.user).toBe(1);
         expect(originalCount.assistant).toBe(1);
     });
+
+    test('forking a conversation should not duplicate the fork query', async ({ page }) => {
+        const chatPage = new ChatPage(page);
+        const homePage = new HomePage(page);
+
+        await chatPage.goto();
+        await chatPage.sendMessage('you good');
+        await chatPage.waitForAssistantResponse();
+
+        let messageCount = await chatPage.getMessageCount();
+        expect(messageCount.user).toBe(1);
+        expect(messageCount.assistant).toBe(1);
+
+        // Fork with a slow query so the run is still active when we navigate to it
+        const forkQuery = 'run a pausable analysis';
+        await chatPage.sendBackgroundMessage(forkQuery);
+
+        // Go to home (SPA nav) and wait for the fork task
+        await chatPage.goHome();
+        await homePage.waitForTaskWithTitle(forkQuery);
+
+        // Click the forked task card to switch to forked conversation
+        await homePage.getTaskCardByTitle(forkQuery).click();
+
+        await page.waitForFunction(
+            (query) => {
+                const userMessages = document.querySelectorAll('.user-message .message-content');
+                return Array.from(userMessages).some(el => el.textContent?.includes(query));
+            },
+            forkQuery,
+            { timeout: 10000 }
+        );
+
+        // Fork query should appear exactly once (not duplicated)
+        const userMessages = await chatPage.getUserMessages();
+        const forkQueryOccurrences = userMessages.filter(m => m.includes('pausable'));
+        expect(forkQueryOccurrences).toHaveLength(1);
+    });
 });
