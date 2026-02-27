@@ -40,7 +40,7 @@ function mimeToExt(mime: string): string {
     return map[mime] || 'png';
 }
 
-export async function generateImage(args: GenerateImageArgs): Promise<GenerateImageResult> {
+export async function generateImage(args: GenerateImageArgs, conversationId?: string): Promise<GenerateImageResult> {
     const { prompt, aspect_ratio } = args;
 
     if (!prompt?.trim()) {
@@ -52,10 +52,13 @@ export async function generateImage(args: GenerateImageArgs): Promise<GenerateIm
 
     log.debug(`Generating image for prompt: "${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (conversationId) headers['X-Pipali-Conversation-ID'] = conversationId;
+
     try {
         const result = await platformFetch<PlatformImageResponse>(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ prompt, aspect_ratio }),
             timeout: IMAGE_GEN_TIMEOUT,
         });

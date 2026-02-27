@@ -710,7 +710,7 @@ async function executeTool(
                 return result.compiled;
             }
             case 'search_web': {
-                const result = await webSearch(toolCall.arguments as WebSearchArgs);
+                const result = await webSearch(toolCall.arguments as WebSearchArgs, context?.conversationId);
                 return result.compiled;
             }
             case 'read_webpage': {
@@ -719,12 +719,13 @@ async function executeTool(
                     {
                         confirmationContext: context?.confirmation,
                         metricsAccumulator: context?.metricsAccumulator,
-                    }
+                    },
+                    context?.conversationId,
                 );
                 return result.compiled;
             }
             case 'generate_image': {
-                const result = await generateImage(toolCall.arguments as GenerateImageArgs);
+                const result = await generateImage(toolCall.arguments as GenerateImageArgs, context?.conversationId);
                 return result.compiled;
             }
             case 'email_user': {

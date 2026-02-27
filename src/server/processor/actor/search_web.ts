@@ -219,7 +219,8 @@ async function searchWithPlatform(
     query: string,
     maxResults: number,
     countryCode: string,
-    apiBaseUrl: string
+    apiBaseUrl: string,
+    conversationId?: string,
 ): Promise<ExtendedSearchResult> {
     const searchEndpoint = `${apiBaseUrl}/web-search`;
 
@@ -238,9 +239,12 @@ async function searchWithPlatform(
         peopleAlsoAsk?: ExtendedSearchResult['peopleAlsoAsk'];
     }
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (conversationId) headers['X-Pipali-Conversation-ID'] = conversationId;
+
     const fetchResult = await platformFetch<PlatformSearchResponse>(searchEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
         timeout: SEARCH_REQUEST_TIMEOUT,
     });
@@ -352,7 +356,7 @@ async function searchWithExa(
 /**
  * Main web search function
  */
-export async function webSearch(args: WebSearchArgs): Promise<WebSearchResult> {
+export async function webSearch(args: WebSearchArgs, conversationId?: string): Promise<WebSearchResult> {
     const {
         query,
         max_results = 10,
@@ -403,7 +407,8 @@ export async function webSearch(args: WebSearchArgs): Promise<WebSearchResult> {
                             query,
                             effectiveMaxResults,
                             country_code,
-                            provider.apiBaseUrl
+                            provider.apiBaseUrl,
+                            conversationId,
                         );
                     }
                 }

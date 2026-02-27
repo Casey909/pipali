@@ -90,7 +90,8 @@ async function getEnabledWebScrapers(): Promise<(typeof WebScraper.$inferSelect)
 async function readWithPlatform(
     url: string,
     query: string | undefined,
-    apiBaseUrl: string
+    apiBaseUrl: string,
+    conversationId?: string,
 ): Promise<string | null> {
     const endpoint = `${apiBaseUrl}/read-webpage`;
 
@@ -101,9 +102,12 @@ async function readWithPlatform(
 
     log.debug(`Read using Pipali Platform: ${url}`);
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (conversationId) headers['X-Pipali-Conversation-ID'] = conversationId;
+
     const result = await platformFetch<{ content?: string; title?: string; url: string }>(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
         timeout: FETCH_REQUEST_TIMEOUT,
     });
@@ -291,7 +295,8 @@ function isValidUrl(urlString: string): boolean {
  */
 export async function readWebpage(
     args: ReadWebpageArgs,
-    options?: ReadWebpageOptions | MetricsAccumulator
+    options?: ReadWebpageOptions | MetricsAccumulator,
+    conversationId?: string,
 ): Promise<ReadWebpageResult> {
     const { url, query } = args;
 
@@ -365,7 +370,8 @@ export async function readWebpage(
                         rawContent = await readWithPlatform(
                             url,
                             query,
-                            scraper.apiBaseUrl
+                            scraper.apiBaseUrl,
+                            conversationId,
                         );
                     }
                 }

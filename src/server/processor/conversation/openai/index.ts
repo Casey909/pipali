@@ -15,6 +15,7 @@ export async function sendMessageToGpt(
     tools?: ToolDefinition[],
     toolChoice: string = 'auto',
     pricing?: PricingConfig,
+    conversationId?: string,
 ): Promise<ResponseWithThought> {
     const openaiTools = toOpenaiTools(tools);
 
@@ -29,6 +30,7 @@ export async function sendMessageToGpt(
         input: messages,
         tools: openaiTools,
         tool_choice: openaiTools ? toolChoice as Responses.ToolChoiceOptions : undefined,
+        ...(conversationId && { metadata: { conversation_id: conversationId } }),
     });
 
     const response = await stream.finalResponse();
