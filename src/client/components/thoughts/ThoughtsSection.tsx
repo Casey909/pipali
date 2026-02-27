@@ -1,7 +1,7 @@
 // Expandable thoughts section showing AI reasoning and tool calls
 // Uses org-mode S-TAB style 3-level cycling: Collapsed → Outline → Full → Collapsed
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronUp, Globe, FileSearch, Pencil, Terminal, Wrench } from 'lucide-react';
 import type { Thought } from '../../types';
 import { ThoughtItem } from './ThoughtItem';
@@ -73,6 +73,17 @@ function splitMultiHeadingThoughts(thoughts: Thought[]): Thought[] {
 
 export function ThoughtsSection({ thoughts, isStreaming }: ThoughtsSectionProps) {
     const [expandLevel, setExpandLevel] = useState<ExpandLevel>(getStoredExpandLevel);
+    // Per-item overrides: at level 1, toggled items show full; at level 2, toggled items show outline
+    const [toggledItems, setToggledItems] = useState<Set<string>>(new Set());
+
+    const toggleItem = useCallback((id: string) => {
+        setToggledItems(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
 
     if (thoughts.length === 0) return null;
 
@@ -101,11 +112,15 @@ export function ThoughtsSection({ thoughts, isStreaming }: ThoughtsSectionProps)
     };
 
     // Cycle: 0 → 1 → 2 → 0
-    const cycleExpand = () => setExpandLevel(prev => {
-        const next = ((prev + 1) % 3) as ExpandLevel;
-        localStorage.setItem(EXPAND_LEVEL_KEY, String(next));
-        return next;
-    });
+    const cycleExpand = () => {
+        setExpandLevel(prev => {
+            const next = ((prev + 1) % 3) as ExpandLevel;
+            localStorage.setItem(EXPAND_LEVEL_KEY, String(next));
+            return next;
+        });
+        // clear per-item overrides on global change
+        setToggledItems(new Set());
+    };
 
     // Render grouped category icons with counts for the toggle button
     const renderSummary = () => {
@@ -187,13 +202,17 @@ export function ThoughtsSection({ thoughts, isStreaming }: ThoughtsSectionProps)
                     <div className="thoughts-list">
                         {displayThoughts.map((thought) => {
                             const stepNumber = thought.type === 'tool_call' ? ++toolCallIndex : 0;
+                            const isToggled = toggledItems.has(thought.id);
+                            // Level 1: default outline, toggled → full. Level 2: default full, toggled → outline.
+                            const showResult = expandLevel === 2 ? !isToggled : isToggled;
                             return (
                                 <ThoughtItem
                                     key={thought.id}
                                     thought={thought}
                                     stepNumber={stepNumber}
                                     isPreview={false}
-                                    showResult={expandLevel === 2}
+                                    showResult={showResult}
+                                    onToggle={() => toggleItem(thought.id)}
                                     uidMap={uidMap}
                                 />
                             );

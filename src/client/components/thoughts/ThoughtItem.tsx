@@ -1,6 +1,6 @@
 // Individual thought/tool_call rendering
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import type { Thought } from '../../types';
 import { formatToolArgs, getFriendlyToolName, formatToolArgsRich, getToolCategory } from '../../utils/formatting';
 import { getToolResultStatus } from '../../utils/toolStatus';
@@ -49,6 +49,7 @@ interface ThoughtItemProps {
     stepNumber: number; // Position among tool_call thoughts
     isPreview?: boolean;
     showResult?: boolean; // false = outline (title only), true = full (title + result)
+    onToggle?: () => void; // Toggle this item's detail level individually
     uidMap?: Map<string, { role: string; label: string }>; // Chrome snapshot uid→label map
 }
 
@@ -63,15 +64,25 @@ function formatBoldText(text: string): React.ReactNode[] {
     });
 }
 
-export function ThoughtItem({ thought, stepNumber, isPreview = false, showResult = true, uidMap }: ThoughtItemProps) {
+export function ThoughtItem({ thought, stepNumber, isPreview = false, showResult = true, onToggle, uidMap }: ThoughtItemProps) {
+    // Track whether the reasoning text is overflowing (truncated by ellipsis)
+    const [isOverflowing, setIsOverflowing] = useState(false);
+    const reasoningRef = useCallback((el: HTMLDivElement | null) => {
+        if (el) setIsOverflowing(el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight);
+    }, [thought.content, showResult]);
+
     if (thought.type === 'thought' && thought.content) {
         const text = thought.content.trim();
         const firstLine = showResult ? text : (text.split('\n')[0] ?? text);
+        const canToggle = onToggle && (isOverflowing || showResult);
         return (
-            <div className={`thought-item reasoning ${thought.isInternalThought ? 'internal' : ''} ${isPreview ? 'preview' : ''}`}>
+            <div
+                className={`thought-item reasoning ${thought.isInternalThought ? 'internal' : ''} ${isPreview ? 'preview' : ''}${canToggle ? ' clickable' : ''}`}
+                onClick={canToggle ? onToggle : undefined}
+            >
                 <div className="thought-step"><span className="thought-reasoning-dot" /></div>
                 <div className="thought-content">
-                    <div className={`thought-reasoning ${thought.isInternalThought ? 'italic' : ''} ${!showResult ? 'outline' : ''}`}>
+                    <div ref={reasoningRef} className={`thought-reasoning ${thought.isInternalThought ? 'italic' : ''} ${!showResult ? 'outline' : ''}`} title={!showResult && isOverflowing ? text : undefined}>
                         {formatBoldText(firstLine)}
                     </div>
                 </div>
@@ -90,16 +101,20 @@ export function ThoughtItem({ thought, stepNumber, isPreview = false, showResult
 
         // Determine success/error status for step indicator (pending takes precedence)
         const stepStatus = thought.isPending ? 'pending' : getToolResultStatus(thought.toolResult, toolName);
+        const hasExpandableContent = !!thought.toolResult
+            || (toolName === 'edit_file' && thought.toolArgs?.old_string)
+            || (toolName === 'write_file' && thought.toolArgs?.content);
+        const canToggle = onToggle && hasExpandableContent;
 
         return (
             <div className={`thought-item ${isPreview ? 'preview' : ''} ${thought.isPending ? 'pending' : ''}`}>
-                <div className={`thought-step ${showResult ? stepStatus : ''}`}>
+                <div className={`thought-step ${showResult ? stepStatus : ''}${canToggle ? ' clickable' : ''}`} onClick={canToggle ? onToggle : undefined}>
                     {showResult ? stepNumber : (
                         <span className={`thought-category-dot thought-category-dot--${category}${thought.isPending ? ' thought-category-dot--pending' : ''}`} />
                     )}
                 </div>
                 <div className="thought-content">
-                    <div className="thought-tool">
+                    <div className={`thought-tool${canToggle ? ' clickable' : ''}`} onClick={canToggle ? onToggle : undefined}>
                         {friendlyToolName}
                         {operationType === 'unsafe' && (
                             <span className="thought-op-badge thought-op-badge--unsafe" title="This action may have lasting side effects">unsafe</span>

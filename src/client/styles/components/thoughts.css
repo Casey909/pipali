@@ -153,6 +153,12 @@
     padding-left: 12px;
 }
 
+.thought-item.clickable,
+.thought-tool.clickable,
+.thought-step.clickable {
+    cursor: pointer;
+}
+
 .thought-step {
     flex-shrink: 0;
     width: 20px;
