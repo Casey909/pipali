@@ -198,6 +198,7 @@ export function buildRuntimeConfig(config: SandboxConfig): SandboxRuntimeConfig 
         },
         network: {
             allowedDomains: config.allowedDomains,
+            allowMachLookup: ['com.apple.metadata.mds'],
             deniedDomains: [],
             allowLocalBinding: config.allowLocalBinding,
             allowAllUnixSockets: true,  // Allow Unix sockets for local services

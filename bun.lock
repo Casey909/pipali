@@ -5,7 +5,7 @@
     "": {
       "name": "server",
       "dependencies": {
-        "@anthropic-ai/sandbox-runtime": "^0.0.26",
+        "@anthropic-ai/sandbox-runtime": "github:khoj-ai/sandbox-runtime#allow-mach-lookup",
         "@electric-sql/pglite": "^0.3.14",
         "@hono/swagger-ui": "^0.5.2",
         "@hono/zod-openapi": "^1.1.5",
@@ -59,7 +59,7 @@
     },
   },
   "packages": {
-    "@anthropic-ai/sandbox-runtime": ["@anthropic-ai/sandbox-runtime@0.0.26", "", { "dependencies": { "@pondwader/socks5-server": "^1.0.10", "@types/lodash-es": "^4.17.12", "commander": "^12.1.0", "lodash-es": "^4.17.21", "shell-quote": "^1.8.3", "zod": "^3.24.1" }, "bin": { "srt": "dist/cli.js" } }, "sha512-DYV5LSsVMnzq0lbfaYMSpxZPUMAx4+hy343dRss+pVCLIfF62qOhxpYfZ5TmOk1GTDQm5f9wPprMNSStmnsV4w=="],
+    "@anthropic-ai/sandbox-runtime": ["@anthropic-ai/sandbox-runtime@github:khoj-ai/sandbox-runtime#db1d41d", { "dependencies": { "@pondwader/socks5-server": "^1.0.10", "@types/lodash-es": "^4.17.12", "commander": "^12.1.0", "lodash-es": "^4.17.23", "shell-quote": "^1.8.3", "zod": "^3.24.1" }, "bin": { "srt": "dist/cli.js" } }, "khoj-ai-sandbox-runtime-db1d41d"],
 
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.27.3", "", { "dependencies": { "@types/node": "^18.11.18", "@types/node-fetch": "^2.6.4", "abort-controller": "^3.0.0", "agentkeepalive": "^4.2.1", "form-data-encoder": "1.7.2", "formdata-node": "^4.3.2", "node-fetch": "^2.6.7" } }, "sha512-IjLt0gd3L4jlOfilxVXTifn42FnVffMgDC04RJK1KDZpmkBWLv0XC92MVVmkxrFZNS/7l3xWgP/I3nqtX1sQHw=="],
 
@@ -343,7 +343,7 @@
 
     "@types/katex": ["@types/katex@0.16.7", "", {}, "sha512-HMwFiRujE5PjrgwHQ25+bsLJgowjGjm5Z8FVSf0N6PwgJrwxH0QxzHYDcKsTfV3wva0vzrpqMTJS2jXPr5BMEQ=="],
 
-    "@types/lodash": ["@types/lodash@4.17.23", "", {}, "sha512-RDvF6wTulMPjrNdCoYRC8gNR880JNGT8uB+REUpC2Ns4pRqQJhGz90wh7rgdXDPpCczF3VGktDuFGVnz8zP7HA=="],
+    "@types/lodash": ["@types/lodash@4.17.24", "", {}, "sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ=="],
 
     "@types/lodash-es": ["@types/lodash-es@4.17.12", "", { "dependencies": { "@types/lodash": "*" } }, "sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ=="],
 
@@ -767,7 +767,7 @@
 
     "listenercount": ["listenercount@1.0.1", "", {}, "sha512-3mk/Zag0+IJxeDrxSgaDPy4zZ3w05PRZeJNnlWhzFz5OkX49J4krc+A8X2d2M69vGMBEX0uyl8M+W+8gH+kBqQ=="],
 
-    "lodash-es": ["lodash-es@4.17.22", "", {}, "sha512-XEawp1t0gxSi9x01glktRZ5HDy0HXqrM0x5pXQM98EaI0NxO6jVM7omDOxsuEo5UIASAnm2bRp1Jt/e0a2XU8Q=="],
+    "lodash-es": ["lodash-es@4.17.23", "", {}, "sha512-kVI48u3PZr38HdYz98UmfPnXl2DXrpdctLrFLCd3kOx1xUkOmpFPx7gCWWM5MPkL/fD8zb+Ph0QzjGFs4+hHWg=="],
 
     "lodash.defaults": ["lodash.defaults@4.2.0", "", {}, "sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ=="],
 

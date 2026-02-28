@@ -419,7 +419,7 @@ async function buildServerBundle() {
         type: "module",
         dependencies: {
             "@electric-sql/pglite": "^0.3.14",
-            "@anthropic-ai/sandbox-runtime": "^0.0.26",
+            "@anthropic-ai/sandbox-runtime": "github:khoj-ai/sandbox-runtime#allow-mach-lookup",
         },
     };
     await fs.writeFile(
@@ -438,6 +438,14 @@ async function buildServerBundle() {
     if (exitCode !== 0) {
         throw new Error(`Failed to install dependencies: exit code ${exitCode}`);
     }
+
+    // Copy pre-built sandbox-runtime dist/ into the Tauri bundle.
+    // The GitHub-installed package has only TypeScript source (no dist/).
+    // The project's postinstall builds it via `tsc -p <sandbox-runtime>/tsconfig.json`.
+    console.log("   Copying sandbox-runtime build artifacts...");
+    const sandboxRuntimeDist = path.join(serverResourceDir, "node_modules", "@anthropic-ai", "sandbox-runtime", "dist");
+    const localSandboxDist = path.join(ROOT_DIR, "node_modules", "@anthropic-ai", "sandbox-runtime", "dist");
+    await copyDir(localSandboxDist, sandboxRuntimeDist, new Set());
 
     // Copy PGlite WASM assets next to the bundled server
     console.log("   Copying PGlite assets...");
