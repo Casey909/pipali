@@ -1,15 +1,13 @@
 /**
  * Read Webpage Actor Tool
  *
- * Reads and extracts content from web pages using configured providers.
- * Supports Exa for content extraction with direct URL fetch as fallback.
- * Uses LLM to extract relevant information from the raw webpage content.
+ * Reads and extracts content from web pages.
+ * Tries the Pipali Platform scraper first, falls back to direct URL fetch.
+ * Uses LLM to extract relevant information from raw content on direct fetch.
  */
 
-import { db } from '../../db';
-import { WebScraper } from '../../db/schema';
-import { desc, eq } from 'drizzle-orm';
 import { platformFetch } from '../../http/platform-fetch';
+import { getPlatformUrl } from '../../auth';
 import { extractRelevantContent } from './webpage_extractor';
 import type { MetricsAccumulator } from '../director/types';
 import { isInternalUrl, getInternalUrlReason } from '../../security';
@@ -23,15 +21,6 @@ const log = createChildLogger({ component: 'read_webpage' });
 
 // Timeout for webpage fetch requests (in milliseconds)
 const FETCH_REQUEST_TIMEOUT = 60000;
-
-// Get environment variables at runtime (not module load time)
-function getExaApiKey(): string | undefined {
-    return process.env.EXA_API_KEY;
-}
-
-function getExaApiBaseUrl(): string {
-    return process.env.EXA_API_URL || 'https://api.exa.ai';
-}
 
 // User agent for direct URL fetching
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -67,33 +56,15 @@ export interface ReadWebpageOptions {
 }
 
 /**
- * Get enabled web scrapers from database, ordered by priority (highest first)
- */
-async function getEnabledWebScrapers(): Promise<(typeof WebScraper.$inferSelect)[]> {
-    try {
-        const scrapers = await db
-            .select()
-            .from(WebScraper)
-            .where(eq(WebScraper.enabled, true))
-            .orderBy(desc(WebScraper.priority));
-        return scrapers;
-    } catch (error) {
-        log.debug('No web scrapers configured in database, using environment variables');
-        return [];
-    }
-}
-
-/**
  * Read webpage content using Pipali Platform API
  * Uses platformFetch for automatic token refresh on 401 errors
  */
 async function readWithPlatform(
     url: string,
     query: string | undefined,
-    apiBaseUrl: string,
     conversationId?: string,
 ): Promise<string | null> {
-    const endpoint = `${apiBaseUrl}/read-webpage`;
+    const endpoint = `${getPlatformUrl()}/tools/read-webpage`;
 
     const payload: { url: string; query?: string } = { url };
     if (query) {
@@ -112,7 +83,6 @@ async function readWithPlatform(
         timeout: FETCH_REQUEST_TIMEOUT,
     });
 
-    // Platform returns { content: "...", title?: "...", url: "..." }
     if (!result.data.content) {
         return null;
     }
@@ -125,73 +95,8 @@ async function readWithPlatform(
 }
 
 /**
- * Read webpage content using Exa API
- */
-async function readWithExa(
-    url: string,
-    apiKey?: string,
-    apiBaseUrl?: string
-): Promise<string | null> {
-    const effectiveApiKey = apiKey || getExaApiKey();
-    const effectiveBaseUrl = apiBaseUrl || getExaApiBaseUrl();
-
-    if (!effectiveApiKey) {
-        throw new Error('Exa API key not configured');
-    }
-
-    const contentsEndpoint = `${effectiveBaseUrl}/contents`;
-    const headers = {
-        'Content-Type': 'application/json',
-        'x-api-key': effectiveApiKey,
-    };
-
-    const payload = {
-        urls: [url],
-        text: true,
-        livecrawl: 'fallback',
-        livecrawlTimeout: 15000,
-    };
-
-    log.debug(`Reading with Exa: ${url}`);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_REQUEST_TIMEOUT);
-
-    try {
-        const response = await fetch(contentsEndpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-            signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Exa contents failed: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        const results = data.results || [];
-
-        if (results.length === 0 || !results[0].text) {
-            return null;
-        }
-
-        return results[0].text;
-    } catch (error) {
-        clearTimeout(timeoutId);
-        if (error instanceof Error && error.name === 'AbortError') {
-            throw new Error('Webpage fetch timed out');
-        }
-        throw error;
-    }
-}
-
-/**
  * Read webpage content using direct URL fetch
- * Fetches HTML and converts to text using simple HTML parsing
+ * Fetches HTML/JSON and converts to text
  */
 async function readWithDirectFetch(url: string): Promise<string | null> {
     log.debug(`Reading with direct fetch: ${url}`);
@@ -217,6 +122,11 @@ async function readWithDirectFetch(url: string): Promise<string | null> {
         }
 
         const contentType = response.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+            return await response.text();
+        }
+
         if (!contentType.includes('text/html') && !contentType.includes('text/plain') && !contentType.includes('application/xhtml')) {
             throw new Error(`Unsupported content type: ${contentType}`);
         }
@@ -290,8 +200,10 @@ function isValidUrl(urlString: string): boolean {
 /**
  * Main read_webpage function
  *
- * Security:
- * - Internal/private network URLs require user confirmation
+ * Tries Pipali Platform scraper. Fallback to local, direct URL fetch.
+ * Use LLM to process raw webpage content.
+ *
+ * Security: Internal/private network URLs require user confirmation.
  */
 export async function readWebpage(
     args: ReadWebpageArgs,
@@ -348,92 +260,50 @@ export async function readWebpage(
     }
 
     try {
-        // Get configured web scrapers from database
-        const scrapers = await getEnabledWebScrapers();
-
         let rawContent: string | null = null;
-        let lastError: Error | null = null;
-        let usedProvider = 'unknown';
+        let usedPlatform = false;
 
-        // Try database-configured scrapers first (ordered by priority)
-        for (const scraper of scrapers) {
-            try {
-                if (scraper.type === 'exa') {
-                    rawContent = await readWithExa(
-                        url,
-                        scraper.apiKey || undefined,
-                        scraper.apiBaseUrl || undefined
-                    );
-                } else if (scraper.type === 'platform') {
-                    // Platform scraper - uses platformFetch for automatic token refresh
-                    if (scraper.apiBaseUrl) {
-                        rawContent = await readWithPlatform(
-                            url,
-                            query,
-                            scraper.apiBaseUrl,
-                            conversationId,
-                        );
-                    }
-                }
-                // 'direct' type scrapers are handled in the final fallback
-
-                if (rawContent) {
-                    usedProvider = scraper.type;
-                    log.debug(`Successfully read with ${scraper.type}`);
-                    break;
-                }
-            } catch (error) {
-                lastError = error instanceof Error ? error : new Error(String(error));
-                log.warn(`Failed with ${scraper.type}: ${lastError.message}`);
-            }
+        // Try platform scraper first
+        try {
+            rawContent = await readWithPlatform(url, query, conversationId);
+            if (rawContent) usedPlatform = true;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            log.warn(`Platform scraper failed: ${message}`);
         }
 
-        // Fallback to environment variable Exa if no database scrapers worked
-        if (!rawContent && getExaApiKey()) {
-            try {
-                log.debug('Trying Exa with environment variable API key');
-                rawContent = await readWithExa(url);
-                if (rawContent) {
-                    usedProvider = 'Exa (env)';
-                }
-            } catch (error) {
-                lastError = error instanceof Error ? error : new Error(String(error));
-                log.warn(`Exa env fallback failed: ${lastError.message}`);
-            }
-        }
-
-        // Direct URL fetch as final fallback
+        // Fall back to direct URL fetch
         if (!rawContent) {
             try {
-                log.debug('Trying direct URL fetch');
                 rawContent = await readWithDirectFetch(url);
-                if (rawContent) {
-                    usedProvider = 'Direct fetch';
-                }
             } catch (error) {
-                lastError = error instanceof Error ? error : new Error(String(error));
-                log.warn(`Direct fetch failed: ${lastError.message}`);
+                const message = error instanceof Error ? error.message : String(error);
+                log.warn(`Direct fetch failed: ${message}`);
+
+                return {
+                    query: `**Reading webpage**: ${url}`,
+                    file: url,
+                    uri: url,
+                    compiled: `Failed to read webpage. Error: ${message}`,
+                };
             }
         }
 
         if (!rawContent) {
-            const errorMessage = lastError
-                ? `Failed to read webpage. Error: ${lastError.message}`
-                : 'Failed to read webpage content.';
-
             return {
                 query: `**Reading webpage**: ${url}`,
                 file: url,
                 uri: url,
-                compiled: errorMessage,
+                compiled: 'Failed to read webpage content.',
             };
         }
 
-        log.debug(`Got ${rawContent.length} chars of raw content from ${usedProvider}`);
+        log.debug(`Got ${rawContent.length} chars from ${usedPlatform ? 'platform' : 'direct fetch'}`);
 
-        // Extract relevant content using LLM if query is provided and not platform scraper
+        // Platform already extracts relevant content server-side.
+        // For direct fetch, use LLM extraction if a query is provided.
         let extractedContent: string;
-        if (query && usedProvider !== 'platform') {
+        if (query && !usedPlatform) {
             try {
                 log.debug(`Extracting relevant content for query: "${query}"`);
                 extractedContent = await extractRelevantContent(rawContent, query, opts.metricsAccumulator);

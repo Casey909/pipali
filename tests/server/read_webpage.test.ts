@@ -74,8 +74,6 @@ describe('readWebpage', () => {
     });
 
     test('should read webpage with direct fetch when no Exa API key', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response(
                 '<html><body><h1>Hello World</h1><p>This is test content.</p></body></html>',
@@ -93,8 +91,6 @@ describe('readWebpage', () => {
     });
 
     test('should strip HTML tags from content', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response(
                 '<html><body><script>alert("bad")</script><p>Good content</p><style>.foo{}</style></body></html>',
@@ -115,8 +111,6 @@ describe('readWebpage', () => {
     });
 
     test('should handle HTTP errors gracefully', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response('Not Found', {
                 status: 404,
@@ -131,8 +125,6 @@ describe('readWebpage', () => {
     });
 
     test('should handle network errors gracefully', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
         const result = await readWebpage({ url: 'https://example.com' });
@@ -140,70 +132,24 @@ describe('readWebpage', () => {
         expect(result.compiled).toContain('Failed to read webpage');
     });
 
-    test('should use Exa API when API key is available', async () => {
-        process.env.EXA_API_KEY = 'test-api-key';
-
-        let capturedUrl: string | URL | Request = '';
-        const preconnect = (globalThis.fetch as typeof fetch).preconnect;
-        const fetchImpl = Object.assign(
-            async (...args: Parameters<typeof fetch>) => {
-                const [url] = args;
-                capturedUrl = url;
-                return new Response(
-                    JSON.stringify({
-                        results: [{ text: 'Exa extracted content from the page' }],
-                    }),
-                    {
-                        status: 200,
-                        headers: { 'Content-Type': 'application/json' },
-                    }
-                );
-            },
-            { preconnect }
-        ) satisfies typeof fetch;
-
-        fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(fetchImpl);
-
-        const result = await readWebpage({ url: 'https://example.com' });
-
-        expect(capturedUrl.toString()).toContain('api.exa.ai/contents');
-        expect(result.compiled).toContain('Exa extracted content');
-    });
-
-    test('should fallback to direct fetch when Exa fails', async () => {
-        process.env.EXA_API_KEY = 'test-api-key';
-
-        let fetchCount = 0;
-        const preconnect = (globalThis.fetch as typeof fetch).preconnect;
-        const fetchImpl = Object.assign(
-            async (...args: Parameters<typeof fetch>) => {
-                const [url] = args;
-                fetchCount++;
-                if (url.toString().includes('exa.ai')) {
-                    return new Response('Error', { status: 500 });
+    test('should fallback to direct fetch when platform fails', async () => {
+        fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
+            new Response(
+                '<html><body><p>Direct fetch content</p></body></html>',
+                {
+                    status: 200,
+                    headers: { 'Content-Type': 'text/html' },
                 }
-                return new Response(
-                    '<html><body><p>Direct fetch content</p></body></html>',
-                    {
-                        status: 200,
-                        headers: { 'Content-Type': 'text/html' },
-                    }
-                );
-            },
-            { preconnect }
-        ) satisfies typeof fetch;
+            )
+        );
 
-        fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(fetchImpl);
-
+        // Platform will fail (no auth state in tests), should fall back to direct fetch
         const result = await readWebpage({ url: 'https://example.com' });
 
-        expect(fetchCount).toBe(2); // Exa failed, then direct fetch
         expect(result.compiled).toContain('Direct fetch content');
     });
 
     test('should decode common HTML entities', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response(
                 '<html><body><p>Tom &amp; Jerry &lt;3 &quot;fun&quot;</p></body></html>',
@@ -243,8 +189,6 @@ describe('readWebpage', () => {
     });
 
     test('should include URL in result metadata', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response('<html><body><p>Content</p></body></html>', {
                 status: 200,
@@ -261,8 +205,6 @@ describe('readWebpage', () => {
     });
 
     test('should reject non-text content types', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response(new ArrayBuffer(100), {
                 status: 200,
@@ -277,8 +219,6 @@ describe('readWebpage', () => {
     });
 
     test('should accept text/plain content type', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response('Plain text content', {
                 status: 200,
@@ -292,8 +232,6 @@ describe('readWebpage', () => {
     });
 
     test('should pass query to result metadata', async () => {
-        delete process.env.EXA_API_KEY;
-
         fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response('<html><body><p>Content about weather</p></body></html>', {
                 status: 200,
