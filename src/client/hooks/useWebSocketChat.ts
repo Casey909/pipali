@@ -1008,7 +1008,9 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         case 'REMOVE_CONVERSATION_STATE': {
             const conversationStates = new Map(state.conversationStates);
             conversationStates.delete(action.conversationId);
-            return { ...state, conversationStates };
+            const pendingConfirmations = new Map(state.pendingConfirmations);
+            pendingConfirmations.delete(action.conversationId);
+            return { ...state, conversationStates, pendingConfirmations };
         }
 
         case 'CLEAR_COMPLETED': {
