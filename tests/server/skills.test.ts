@@ -331,6 +331,77 @@ description: Manage the user's notes and tasks
             expect(skill).toBeDefined();
             expect(skill?.description).toBe("Manage the user's notes and tasks");
         });
+
+        test('should load skill with metadata visible: false', async () => {
+            const skillDir = path.join(skillsDir, 'hidden-skill');
+            await fs.mkdir(skillDir, { recursive: true });
+            await fs.writeFile(
+                path.join(skillDir, 'SKILL.md'),
+                `---
+name: hidden-skill
+description: A hidden skill
+metadata:
+  visible: false
+---
+# Hidden Skill
+`
+            );
+
+            const result = await scanSkillsDirectory(skillsDir);
+            const skill = result.skills.find((s: Skill) => s.name === 'hidden-skill');
+            expect(skill).toBeDefined();
+            expect(skill?.visible).toBe(false);
+        });
+
+        test('should default visible to true when not in frontmatter', async () => {
+            const result = await scanSkillsDirectory(skillsDir);
+            const skill = result.skills.find((s: Skill) => s.name === 'valid-skill');
+            expect(skill).toBeDefined();
+            expect(skill?.visible).toBe(true);
+        });
+    });
+
+    describe('parseFrontmatter visibility', () => {
+        test('should parse visible: false under metadata', () => {
+            const content = `---
+name: hidden-skill
+description: A hidden skill
+metadata:
+  visible: false
+---
+Content.
+`;
+            const result = parseFrontmatter(content);
+            expect(result).not.toBeNull();
+            expect(result?.visible).toBe(false);
+        });
+
+        test('should parse quoted string visible: "false" under metadata', () => {
+            const content = `---
+name: quoted-vis
+description: Quoted visible value
+metadata:
+  visible: "false"
+---
+Content.
+`;
+            const result = parseFrontmatter(content);
+            expect(result).not.toBeNull();
+            expect(result?.visible).toBe(false);
+        });
+
+        test('should not parse top-level visible field', () => {
+            const content = `---
+name: top-level-skill
+description: Has top-level visible
+visible: false
+---
+Content.
+`;
+            const result = parseFrontmatter(content);
+            expect(result).not.toBeNull();
+            expect(result?.visible).toBeUndefined();
+        });
     });
 
     describe('escapeYamlValue', () => {
@@ -400,6 +471,7 @@ Content here.
                     name: 'test-skill',
                     description: 'A test skill',
                     location: '/path/to/test-skill/SKILL.md',
+                    visible: true,
                 },
             ];
 
@@ -419,6 +491,7 @@ Content here.
                     name: 'xml-skill',
                     description: 'Uses <tags> & "quotes"',
                     location: '/path/to/skill',
+                    visible: true,
                 },
             ];
 
@@ -431,8 +504,8 @@ Content here.
 
         test('should format multiple skills', () => {
             const skills: Skill[] = [
-                { name: 'skill-1', description: 'First skill', location: '/path/1' },
-                { name: 'skill-2', description: 'Second skill', location: '/path/2' },
+                { name: 'skill-1', description: 'First skill', location: '/path/1', visible: true },
+                { name: 'skill-2', description: 'Second skill', location: '/path/2', visible: true },
             ];
 
             const result = formatSkillsForPrompt(skills);

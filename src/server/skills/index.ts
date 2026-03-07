@@ -261,6 +261,92 @@ export function getLoadedSkills(): Skill[] {
 }
 
 /**
+ * Generate SKILL.md file content with frontmatter for new skills
+ */
+function generateNewSkillMdContent(name: string, description: string, instructions: string = ''): string {
+    return `---
+name: ${name}
+description: ${escapeYamlValue(description)}
+---
+
+${instructions}
+`.trim() + '\n';
+}
+
+/**
+ * Parse a SKILL.md file into its raw YAML frontmatter and body (instructions)
+ */
+function parseSkillMdParts(content: string): { yaml: string; body: string } | null {
+    const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!match) return null;
+    const yaml = match[1]!;
+    // Body starts after the closing --- of frontmatter
+    const body = content.slice(match[0].length).trim();
+    return { yaml, body };
+}
+
+/**
+ * Update the metadata.visible field in raw YAML frontmatter, preserving all other fields.
+ * Only writes visible: false (omits when true, since true is the default).
+ */
+function updateYamlVisibility(yaml: string, visible: boolean): string {
+    const metadataMatch = yaml.match(/^(metadata:\s*\r?\n)((?:[ \t]+[^\n]*(?:\r?\n|$))*)/m);
+
+    if (metadataMatch) {
+        const metadataPrefix = metadataMatch[1]!;
+        const metadataBody = metadataMatch[2]!;
+        // Remove existing visible line (including its trailing newline)
+        const cleanedBody = metadataBody.replace(/^[ \t]+visible:\s*["']?(true|false)["']?\s*\r?\n?/m, '');
+        const hasOtherFields = cleanedBody.trim() !== '';
+
+        if (visible) {
+            if (!hasOtherFields) {
+                // Remove entire metadata block and any preceding newline
+                return yaml.replace('\n' + metadataMatch[0], '').replace(metadataMatch[0], '');
+            }
+            return yaml.replace(metadataMatch[0], metadataPrefix + cleanedBody);
+        } else {
+            const newBody = '  visible: false\n' + cleanedBody;
+            return yaml.replace(metadataMatch[0], metadataPrefix + newBody);
+        }
+    }
+
+    // No existing metadata block
+    if (visible) {
+        return yaml;
+    }
+    return yaml + '\nmetadata:\n  visible: false';
+}
+
+/**
+ * Reassemble a SKILL.md file from YAML frontmatter and body content
+ */
+function assembleSkillMd(yaml: string, body: string): string {
+    return body
+        ? `---\n${yaml}\n---\n\n${body}\n`
+        : `---\n${yaml}\n---\n`;
+}
+
+/**
+ * Update the description field in raw YAML frontmatter
+ */
+function updateYamlDescription(yaml: string, description: string): string {
+    // Match description in any format (quoted, unquoted, multiline)
+    // Try double-quoted
+    let updated = yaml.replace(/^description:\s*"(?:[^"\\]|\\.)*"\s*$/m, `description: ${escapeYamlValue(description)}`);
+    if (updated !== yaml) return updated;
+    // Try single-quoted
+    updated = yaml.replace(/^description:\s*'(?:[^'\\]|\\.)*'\s*$/m, `description: ${escapeYamlValue(description)}`);
+    if (updated !== yaml) return updated;
+    // Try multiline (> or |)
+    updated = yaml.replace(/^description:\s*[>|]\s*\r?\n(?:[ \t]+[^\n]*\r?\n?)+/m, `description: ${escapeYamlValue(description)}`);
+    if (updated !== yaml) return updated;
+    // Try unquoted
+    updated = yaml.replace(/^description:\s*[^\n]+$/m, `description: ${escapeYamlValue(description)}`);
+    return updated;
+}
+
+/**
  * Create a new skill by writing a SKILL.md file
  */
 export async function createSkill(input: CreateSkillInput): Promise<CreateSkillResult> {
@@ -305,13 +391,7 @@ export async function createSkill(input: CreateSkillInput): Promise<CreateSkillR
     }
 
     // Generate SKILL.md content
-    const content = `---
-name: ${name}
-description: ${escapeYamlValue(description)}
----
-
-${instructions}
-`.trim() + '\n';
+    const content = generateNewSkillMdContent(name, description, instructions);
 
     // Write the file
     try {
@@ -327,6 +407,7 @@ ${instructions}
         name,
         description,
         location: skillMdPath,
+        visible: true,
     };
 
     return {
@@ -429,14 +510,25 @@ export async function updateSkill(name: string, input: UpdateSkillInput): Promis
         };
     }
 
-    // Generate updated SKILL.md content
-    const content = `---
-name: ${name}
-description: ${escapeYamlValue(description)}
----
+    // Read existing file to preserve metadata fields
+    let existingContent: string;
+    try {
+        existingContent = await Bun.file(skill.location).text();
+    } catch (err) {
+        return {
+            success: false,
+            error: `Failed to read skill: ${err instanceof Error ? err.message : String(err)}`,
+        };
+    }
 
-${instructions}
-`.trim() + '\n';
+    const parts = parseSkillMdParts(existingContent);
+    if (!parts) {
+        return { success: false, error: 'Failed to parse existing SKILL.md frontmatter' };
+    }
+
+    // Update description in YAML, preserving other fields (including metadata)
+    const updatedYaml = updateYamlDescription(parts.yaml, description);
+    const content = assembleSkillMd(updatedYaml, instructions);
 
     // Write the updated file
     try {
@@ -459,6 +551,56 @@ ${instructions}
         success: true,
         skill: updatedSkill,
     };
+}
+
+export interface ToggleVisibilityResult {
+    success: boolean;
+    skill?: Skill;
+    error?: string;
+}
+
+/**
+ * Toggle a skill's visibility (visible field in frontmatter)
+ */
+export async function toggleSkillVisibility(name: string, visible: boolean): Promise<ToggleVisibilityResult> {
+    const skill = cachedSkills.find(s => s.name === name);
+    if (!skill) {
+        return { success: false, error: `Skill "${name}" not found` };
+    }
+
+    // Read existing file to preserve all content
+    let existingContent: string;
+    try {
+        existingContent = await Bun.file(skill.location).text();
+    } catch (err) {
+        return {
+            success: false,
+            error: `Failed to read skill: ${err instanceof Error ? err.message : String(err)}`,
+        };
+    }
+
+    const parts = parseSkillMdParts(existingContent);
+    if (!parts) {
+        return { success: false, error: 'Failed to parse existing SKILL.md frontmatter' };
+    }
+
+    // Update only the visible field in metadata, preserving everything else
+    const updatedYaml = updateYamlVisibility(parts.yaml, visible);
+    const content = assembleSkillMd(updatedYaml, parts.body);
+    try {
+        await Bun.write(skill.location, content);
+    } catch (err) {
+        return {
+            success: false,
+            error: `Failed to write SKILL.md: ${err instanceof Error ? err.message : String(err)}`,
+        };
+    }
+
+    // Update cache
+    const updatedSkill: Skill = { ...skill, visible };
+    cachedSkills = cachedSkills.map(s => s.name === name ? updatedSkill : s);
+
+    return { success: true, skill: updatedSkill };
 }
 
 // Re-export types and utilities

@@ -18,7 +18,7 @@ import { getDefaultUser } from '../utils';
 import { atifConversationService } from '../processor/conversation/atif/atif.service';
 import { runResearchToCompletion } from '../processor/research-runner';
 import { getActiveStatus } from '../sessions';
-import { loadSkills, getLoadedSkills, createSkill, getSkill, deleteSkill, updateSkill } from '../skills';
+import { loadSkills, getLoadedSkills, createSkill, getSkill, deleteSkill, updateSkill, toggleSkillVisibility } from '../skills';
 import { loadUserContext, saveUserContext } from '../user-context';
 import { syncPlatformModels, syncPlatformWebTools } from '../auth';
 import { createChildLogger } from '../logger';
@@ -667,6 +667,24 @@ api.put('/skills/:name', zValidator('json', updateSkillSchema), async (c) => {
     }
 
     log.info(`✅ Updated skill "${name}"`);
+    return c.json({ success: true, skill: result.skill });
+});
+
+// Toggle skill visibility
+const toggleVisibilitySchema = z.object({
+    visible: z.boolean(),
+});
+
+api.patch('/skills/:name/visibility', zValidator('json', toggleVisibilitySchema), async (c) => {
+    const name = c.req.param('name');
+    const { visible } = c.req.valid('json');
+
+    const result = await toggleSkillVisibility(name, visible);
+
+    if (!result.success) {
+        return c.json({ error: result.error }, 400);
+    }
+
     return c.json({ success: true, skill: result.skill });
 });
 

@@ -4,6 +4,7 @@ export type SkillInfo = {
     name: string;
     description: string;
     location: string;
+    visible: boolean;
 };
 
 export type SkillLoadError = {

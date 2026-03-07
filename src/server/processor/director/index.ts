@@ -116,7 +116,7 @@ export async function buildSystemPrompt(args: {
         ? await prompts.userContext.format({ userContext: args.userContext })
         : '';
 
-    const skillsContext = formatSkillsForPrompt(getLoadedSkills());
+    const skillsContext = formatSkillsForPrompt(getLoadedSkills().filter(s => s.visible));
 
     const firstConversationContext = args.isFirstEverConversation
         ? await prompts.firstConversation.format({})

@@ -62,6 +62,22 @@ export function SkillsPage() {
         handleReload();
     };
 
+    const handleToggleVisibility = async (skill: SkillInfo, visible: boolean) => {
+        try {
+            const res = await apiFetch(`/api/skills/${encodeURIComponent(skill.name)}/visibility`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ visible }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSkills(prev => prev.map(s => s.name === skill.name ? data.skill : s));
+            }
+        } catch (e) {
+            console.error('Failed to toggle skill visibility', e);
+        }
+    };
+
     if (isLoading) {
         return (
             <main className="main-content">
@@ -122,6 +138,7 @@ export function SkillsPage() {
                                     key={skill.name}
                                     skill={skill}
                                     onClick={() => setSelectedSkill(skill)}
+                                    onToggleVisibility={handleToggleVisibility}
                                 />
                             ))}
                         </div>

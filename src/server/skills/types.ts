@@ -13,6 +13,8 @@ export interface Skill {
     description: string;
     /** Absolute path to the SKILL.md file */
     location: string;
+    /** Whether the skill is visible/enabled for prompt injection (default: true) */
+    visible: boolean;
 }
 
 /**
@@ -41,4 +43,5 @@ export interface SkillLoadError {
 export interface SkillFrontmatter {
     name?: string;
     description?: string;
+    visible?: boolean;
 }

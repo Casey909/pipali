@@ -70,6 +70,16 @@ export function parseFrontmatter(content: string): SkillFrontmatter | null {
         }
     }
 
+    // Parse visible field under metadata section only
+    const metadataMatch = yaml.match(/^metadata:\s*\r?\n((?:[ \t]+[^\n]*\r?\n?)*)/m);
+    if (metadataMatch && metadataMatch[1]) {
+        const metadataBlock = metadataMatch[1];
+        const visibleMatch = metadataBlock.match(/^\s+visible:\s*["']?(true|false)["']?\s*$/m);
+        if (visibleMatch && visibleMatch[1]) {
+            result.visible = visibleMatch[1] === 'true';
+        }
+    }
+
     return result;
 }
 
@@ -190,6 +200,7 @@ async function loadSkill(skillDir: string): Promise<{ skill?: Skill; error?: Ski
             name: frontmatter.name,
             description: frontmatter.description,
             location: skillMdPath,
+            visible: frontmatter.visible !== false,
         },
     };
 }

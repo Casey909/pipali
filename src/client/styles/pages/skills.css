@@ -154,22 +154,58 @@
     outline-offset: 2px;
 }
 
-.skill-card-header {
+.skill-card-hidden {
+    opacity: 0.55;
+}
+
+.skill-card-title-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    gap: 8px;
 }
 
-.skill-source-icon {
-    color: var(--color-text-muted);
+.skill-toggle-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
 }
 
-.skill-source-badge {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.skill-toggle-track {
+    display: block;
+    width: 32px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--color-bg-muted);
+    border: 1px solid var(--color-border);
+    position: relative;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.skill-toggle-on .skill-toggle-track {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+.skill-toggle-thumb {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform var(--transition), background var(--transition);
+}
+
+.skill-toggle-on .skill-toggle-thumb {
+    transform: translateX(14px);
+    background: var(--color-bg);
 }
 
 .skill-card-title {

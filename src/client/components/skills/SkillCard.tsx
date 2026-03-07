@@ -7,12 +7,18 @@ import type { SkillInfo } from '../../types/skills';
 interface SkillCardProps {
     skill: SkillInfo;
     onClick?: () => void;
+    onToggleVisibility?: (skill: SkillInfo, visible: boolean) => void;
 }
 
-export function SkillCard({ skill, onClick }: SkillCardProps) {
+export function SkillCard({ skill, onClick, onToggleVisibility }: SkillCardProps) {
+    const handleToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onToggleVisibility?.(skill, !skill.visible);
+    };
+
     return (
         <div
-            className="skill-card"
+            className={`skill-card${!skill.visible ? ' skill-card-hidden' : ''}`}
             onClick={onClick}
             role="button"
             tabIndex={0}
@@ -23,7 +29,19 @@ export function SkillCard({ skill, onClick }: SkillCardProps) {
                 }
             }}
         >
-            <h3 className="skill-card-title">{skill.name}</h3>
+            <div className="skill-card-title-row">
+                <h3 className="skill-card-title">{skill.name}</h3>
+                <button
+                    className={`skill-toggle-btn${skill.visible ? ' skill-toggle-on' : ''}`}
+                    onClick={handleToggle}
+                    title={skill.visible ? 'Disable skill' : 'Enable skill'}
+                    aria-label={skill.visible ? 'Disable skill' : 'Enable skill'}
+                >
+                    <span className="skill-toggle-track">
+                        <span className="skill-toggle-thumb" />
+                    </span>
+                </button>
+            </div>
 
             <p className="skill-card-description">{skill.description}</p>
 
