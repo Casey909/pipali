@@ -64,7 +64,7 @@ const App = () => {
             .catch(() => { /* Use default platform URL */ });
     }, []);
 
-    // Fetch user context name on mount
+    // Fetch user context name on sidecar ready
     const fetchUserName = () => {
         apiFetch('/api/user/context')
             .then(res => res.ok ? res.json() : null)
@@ -73,7 +73,6 @@ const App = () => {
             })
             .catch(() => { });
     };
-    useEffect(() => { fetchUserName(); }, []);
 
     // Core state
     const [input, setInput] = useState("");
@@ -299,6 +298,7 @@ const App = () => {
             fetchConversations();
             fetchAutomationConfirmations();
             fetchAuthStatus();
+            fetchUserName();
             refetchModels();
         };
 
