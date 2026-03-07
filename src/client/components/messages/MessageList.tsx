@@ -1,8 +1,9 @@
 // Message list container with empty state
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Message } from '../../types';
 import { MessageItem } from './MessageItem';
+import { MessageNavigator } from './MessageNavigator';
 import { EmptyHomeState } from '../home/EmptyHomeState';
 
 interface MessageListProps {
@@ -17,6 +18,7 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
     const lastUserMessageRef = useRef<HTMLDivElement>(null);
     const mainContentRef = useRef<HTMLElement>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
+    const messageRefsMap = useRef<Map<number, HTMLElement>>(new Map());
     const previousConversationIdRef = useRef<string | undefined>(undefined);
     const previousMessagesLengthRef = useRef<number>(0);
     const previousThoughtsLengthRef = useRef<number>(0);
@@ -25,6 +27,12 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
 
     // Find the index of the last user message
     const lastUserMessageIndex = messages.findLastIndex(msg => msg.role === 'user');
+
+    // All message indices for the navigator
+    const messageIndices = useMemo(
+        () => messages.map((_, i) => i),
+        [messages.length]
+    );
 
     // Get the streaming message's thoughts count
     const streamingMessage = messages.find(msg => msg.role === 'assistant' && msg.isStreaming);
@@ -134,13 +142,25 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
                 ) : (
                     <div className="messages" ref={messagesRef}>
                         {messages.map((msg, index) => (
-                            <div key={msg.stableId} ref={index === lastUserMessageIndex ? lastUserMessageRef : undefined}>
+                            <div
+                                key={msg.stableId}
+                                ref={el => {
+                                    if (index === lastUserMessageIndex) lastUserMessageRef.current = el;
+                                    if (el) messageRefsMap.current.set(index, el);
+                                    else messageRefsMap.current.delete(index);
+                                }}
+                            >
                                 <MessageItem message={msg} platformFrontendUrl={platformFrontendUrl} onDelete={onDeleteMessage} />
                             </div>
                         ))}
                     </div>
                 )}
             </div>
+            <MessageNavigator
+                messageIndices={messageIndices}
+                scrollContainerRef={mainContentRef}
+                messageRefs={messageRefsMap}
+            />
         </main>
     );
 }
