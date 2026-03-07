@@ -44,6 +44,7 @@ export function ExternalLink({ href, children, node: _node, ...props }: External
         // Handle external links (http/https) - open in browser
         if (isHttpHref && href) {
             e.preventDefault();
+            e.stopPropagation();
             void openInBrowser(href);
             return;
         }

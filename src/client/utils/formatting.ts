@@ -263,13 +263,13 @@ export function formatToolArgsRich(toolName: string, args: any, outline = false,
                 const limitStr = args.limit ? `${args.offset + args.limit}` : '';
                 text += ` (lines ${[offsetStr, limitStr].filter(Boolean).join('-')})`;
             }
-            return { text, secondary: folder ? `in ${folder}` : undefined, hoverText: args.path };
+            return { text, secondary: folder ? `in ${folder}` : undefined, url: `file://${args.path}`, hoverText: args.path };
         }
         case 'edit_file':
         case 'write_file': {
             if (!args.file_path) return null;
             const [basename, folder] = splitPath(args.file_path);
-            return { text: basename, secondary: folder ? `in ${folder}` : undefined, hoverText: args.file_path };
+            return { text: basename, secondary: folder ? `in ${folder}` : undefined, url: `file://${args.file_path}`, hoverText: args.file_path };
         }
         case 'list_files': {
             if (!args.path) return null;

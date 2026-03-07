@@ -1,5 +1,6 @@
 // Generate image tool result view
 
+import { ExternalLink } from '../ExternalLink';
 import { parseMultimodalContent } from '../../utils/toolStatus';
 
 interface GenerateImageViewProps {
@@ -13,15 +14,27 @@ export function GenerateImageView({ result }: GenerateImageViewProps) {
         ?.filter(c => c.type === 'text').map(c => c.text).filter(Boolean).join('\n')
         || (!imageItem ? result : '');
 
+    // Extract file path from "Generated image saved to: /path/to/file"
+    const filePathMatch = textContent.match(/saved to:\s*(\S+)/);
+    const filePath = filePathMatch?.[1];
+
+    const imgElement = imageItem ? (
+        <img
+            src={`data:${imageItem.mime_type};base64,${imageItem.data}`}
+            alt={textContent || "Generated image"}
+            title={textContent || "Generated image"}
+        />
+    ) : null;
+
     return (
         <div className="thought-tool-result">
-            {imageItem ? (
+            {imgElement ? (
                 <div className="read-file-image">
-                    <img
-                        src={`data:${imageItem.mime_type};base64,${imageItem.data}`}
-                        alt={textContent || "Generated image"}
-                        title={textContent || "Generated image"}
-                    />
+                    {filePath ? (
+                        <ExternalLink href={`file://${filePath}`}>
+                            {imgElement}
+                        </ExternalLink>
+                    ) : imgElement}
                 </div>
             ) : textContent ? (
                 <div className="tool-result-content">
