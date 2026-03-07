@@ -1,0 +1,111 @@
+# Changelog
+
+## 0.3.0
+
+### 🎁 New
+- Empower Pipali to help you onboard, navigate it and re-configure itself
+  You can now just ask Pipali to find/refer to old chats, create routines and connect to mcp tools
+- Pin conversations to home page for easy, quick access
+- Stream task and automation runs in real-time across multiple devices
+
+### 🧪 Improve
+- Improve the routines page UX with sticky controls, better icons and concise schedules
+- Add ability to jump through user/ai chat messages using new message navigator
+- Reduce OS permission triggers on Mac by not touching sensitive directories
+- Show full intermediate responses and cycle detail level of each item in train of thought
+
+### 🛠️ Fix
+- Show cause of failure to connect to MCP server on tools page
+- Update user name in sidebar if changed in Google or settings page
+
+## 0.2.3
+
+### 🎁 New
+- Search across all your chat messages from the chat switcher
+- Set custom titles on conversations to make them easy to find
+
+### 🧪 Improve
+- Keep Device Awake preference now persists across app restarts
+- Make task runs more robust by retrying on unexpected response
+- Improve rendering of nested lists in messages
+
+### 🛠️ Fix
+- Auto scroll train of thought when near bottom and expanded
+- Show guidance with confirmations instead of sending a new message
+
+## 0.2.2
+
+### 🎁 New
+- Sign Windows desktop app so no more SmartScreen warnings on install
+
+### 🧪 Improve
+- Use platform recommended chat model by default until you pick one
+
+### 🛠️ Fix
+- Fix Linux AppImage builds
+
+## 0.2.1
+
+### 🧪 Improve
+- Make confirmation dialogs and toasts more compact and readable
+- Show Chrome browser usage steps in train of thought for easier understanding
+- Simplify MCP server confirmation mode descriptions
+
+### 🛠️ Fix
+- Show actionable error page when something goes wrong in the app
+- Fix compatibility with older Safari versions
+
+## 0.2.0
+
+### 🎁 New
+- Attach files to chat via drag-and-drop, copy-paste or the attach button
+
+### 🧪 Improve
+- Three detail levels (outline, summary, detail) in train of thought dropdown
+- Show tool count per category on home page task cards
+- Make task overview on chat page more visually informative
+- Improve image generation and file tool rendering in train of thought
+- More personal home greeting with tips in chat input placeholder
+- Add playful animation to empty state that reacts to your input
+
+### 🛠️ Fix
+- Prevent database corruption from partial migration failures
+- Allow opening web links from train of thought on desktop app
+
+## 0.1.1
+
+### 🎁 New
+- Use Pipali on Linux
+- Interact with Claude models, like Opus, via the platform
+- Ask Pipali to email you, especially useful with Routines (e.g. get a weekly report in your inbox)
+
+### 🧪 Improve
+- Better handling of dates near midnight for more accurate scheduling
+- Fallback to default model if a previously used model is deleted
+
+### 🛠️ Fix
+- Fix opening links from chat on the desktop app
+
+## 0.1.0
+
+The first release of Pipali!
+
+### 🏔️ Work Async
+- Assign Pipali tasks and go grab a coffee. Track progress, give feedback and get notified when it needs your attention
+
+### 📑 Create Polished Deliverables
+- Turn messy inputs into shareable outputs — briefs, decision memos, project updates, meeting notes and spreadsheets
+
+### ⏱️ Automate Routine Work
+- Set up tasks on a schedule or trigger them manually. "Draft my weekly project update email", "Sync my ledger on the 1st of every month"
+
+### 🎓 Teach It Your Workflows
+- Create skills for all your custom workflows — where to find project documents, which accounting method to follow or your email organization policy
+
+### 🛠️ Connect Your Tools
+- Integrate Jira, Linear, Slack and more via MCP. Pipali can create issues, post messages and interact with external APIs on your behalf
+- Use the right AI model for the right task. Model access provided through the Pipali Platform — Single Sign On, no API key setup needed
+
+### 🦺 Run Safely
+- Commands run in a local sandbox that restricts file and network access. Commands needing broader access require your explicit approval
+- Desktop app for Mac and Windows with system tray

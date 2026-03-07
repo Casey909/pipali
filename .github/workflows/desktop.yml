@@ -411,6 +411,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: ⬇️ Checkout Code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+
       - name: ⬇️ Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -421,11 +427,26 @@ jobs:
           echo "=== All artifacts ==="
           find artifacts -type f | head -50
 
+      - name: 📝 Extract Release Notes
+        id: notes
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          NOTES=$(awk -v tag="## ${TAG}" '
+            $0 == tag { found=1; next }
+            found && /^## / { exit }
+            found
+          ' CHANGELOG.md | awk 'NF{p=1} p' | awk '{lines[NR]=$0} END{while(lines[NR]=="") NR--; for(i=1;i<=NR;i++) print lines[i]}')
+          if [ -z "$NOTES" ]; then
+            NOTES="**Full Changelog**: https://github.com/${{ github.repository }}/compare/...${TAG}"
+          fi
+          # Write to file to preserve newlines
+          echo "$NOTES" > release-notes.md
+
       - name: 📦 Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
-          generate_release_notes: true
+          draft: false
+          body_path: release-notes.md
           files: |
             artifacts/**/*.dmg
             artifacts/pipali-linux-x64.AppImage/*.AppImage
@@ -443,6 +464,12 @@ jobs:
       !cancelled() &&
       (needs.build-macos.result == 'success' || needs.build-linux.result == 'success' || needs.build-windows.result == 'success')
     steps:
+      - name: ⬇️ Checkout Code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+
       - name: ⬇️ Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -479,7 +506,19 @@ jobs:
           DATE=$(date -u +"%Y-%m-%d")
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           CDN="https://download.pipali.ai/releases/${TAG}"
-          NOTES="See full release notes at https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+          # Extract release notes for this version from CHANGELOG.md
+          # Grabs everything between "## <TAG>" and the next "## " heading, trims leading/trailing blank lines
+          # Strip ### headings for plain text display in native OS update dialog
+          NOTES=$(awk -v tag="## ${TAG}" '
+            $0 == tag { found=1; next }
+            found && /^## / { exit }
+            found
+          ' CHANGELOG.md | sed 's/^### //' | awk 'NF{p=1} p' | awk '{lines[NR]=$0} END{while(lines[NR]=="") NR--; for(i=1;i<=NR;i++) print lines[i]}')
+          if [ -z "$NOTES" ]; then
+            NOTES="See full release notes at https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+          else
+            NOTES="${NOTES}"$'\n\n'"See full release notes at https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+          fi
 
           # Download page manifest
           cat > upload/manifest.json <<EOF
