@@ -86,7 +86,7 @@ async function setupDefaultMcpServers(): Promise<void> {
             name: chromeBrowserName,
             description: 'Use to interact with pages that require login and/or UX interactions. Useful when normal webpage read, web search tools do not suffice.',
             transportType: 'stdio',
-            path: 'chrome-devtools-mcp@latest --autoConnect',
+            path: 'chrome-devtools-mcp --autoConnect',
             confirmationMode: 'unsafe_only',
             enabled: true,
             enabledTools: [

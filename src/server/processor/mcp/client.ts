@@ -3,6 +3,7 @@ import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotoc
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { McpServerConfig, McpToolInfo, McpToolCallResult, McpClientStatus, McpContentType } from './types';
 import os from 'os';
+import path from 'path';
 import { createChildLogger } from '../../logger';
 import { getBundledRuntimes } from '../../bundled-runtimes';
 
@@ -109,6 +110,49 @@ export function parseStdioCommand(path: string): { command: string; args: string
  */
 export function isHttpTransport(path: string): boolean {
     return path.startsWith('http://') || path.startsWith('https://');
+}
+
+/**
+ * Resolve a `bun x <package>` call to a vendored binary in the server resource
+ * node_modules. Returns null if the package isn't vendored.
+ */
+async function resolveVendoredBin(
+    args: string[]
+): Promise<{ binPath: string; extraArgs: string[] } | null> {
+    // Only handle `bun x -y <package> [args...]` patterns
+    if (args[0] !== 'x') return null;
+
+    // Find the package name (skip flags like -y)
+    let pkgIndex = 1;
+    while (pkgIndex < args.length && args[pkgIndex]!.startsWith('-')) pkgIndex++;
+    if (pkgIndex >= args.length) return null;
+
+    const pkgSpec = args[pkgIndex]!; // e.g. "chrome-devtools-mcp@latest" or "chrome-devtools-mcp"
+    const pkgName = pkgSpec.replace(/@[\w.*^~>=<|-]+$/, ''); // strip version suffix
+    const extraArgs = args.slice(pkgIndex + 1);
+
+    const serverDir = process.env.PIPALI_SERVER_RESOURCE_DIR;
+    if (!serverDir) return null;
+
+    // Check if the package is vendored by looking for its package.json
+    const pkgJsonPath = path.join(serverDir, 'node_modules', pkgName, 'package.json');
+    try {
+        const pkgJson = JSON.parse(await Bun.file(pkgJsonPath).text());
+        // Resolve the bin entry — use the package name key or the first bin entry
+        const bin = pkgJson.bin;
+        let binRelPath: string | undefined;
+        if (typeof bin === 'string') {
+            binRelPath = bin;
+        } else if (bin && typeof bin === 'object') {
+            binRelPath = bin[pkgName] ?? Object.values(bin)[0] as string;
+        }
+        if (!binRelPath) return null;
+
+        const binPath = path.join(serverDir, 'node_modules', pkgName, binRelPath);
+        return { binPath, extraArgs };
+    } catch {
+        return null;
+    }
 }
 
 // Cache the shell PATH to avoid repeated shell invocations
@@ -260,6 +304,11 @@ export class McpClient {
         const runtimes = await getBundledRuntimes();
         if (command === 'bun' && runtimes.isBundled) {
             command = runtimes.bun;
+            // Resolve vendored npm packages instead of downloading via `bun x`
+            const vendoredBin = await resolveVendoredBin(args);
+            if (vendoredBin) {
+                args = ['run', vendoredBin.binPath, ...vendoredBin.extraArgs];
+            }
         }
 
         // Build environment with user-specified overrides
