@@ -9,6 +9,30 @@ import { getBundledRuntimes } from '../../bundled-runtimes';
 const log = createChildLogger({ component: 'mcp' });
 
 /**
+ * Build the environment for stdio MCP servers.
+ *
+ * We always enable NODE_USE_SYSTEM_CA for MCP child processes so package
+ * downloads and HTTPS requests use the OS trust store on user machines.
+ * Per-server env config can still override this default if needed.
+ */
+export function buildStdioEnvironment(
+    defaultEnv: Record<string, string>,
+    options: {
+        homeDir?: string;
+        shellPath?: string;
+        configEnv?: Record<string, string> | null;
+    } = {}
+): Record<string, string> {
+    return {
+        ...defaultEnv,
+        HOME: options.homeDir ?? getHomeDir(),
+        NODE_USE_SYSTEM_CA: '1',
+        ...(options.shellPath ? { PATH: options.shellPath } : {}),
+        ...options.configEnv,
+    };
+}
+
+/**
  * Split a command line string into parts, respecting quoted strings.
  * E.g., 'foo --bar "hello world"' => ['foo', '--bar', 'hello world']
  */
@@ -242,13 +266,11 @@ export class McpClient {
         // Use shell PATH to ensure tools are found (important for desktop apps)
         const defaultEnv = getDefaultEnvironment();
         const shellPath = await getShellPath();
-
-        const env = {
-            ...defaultEnv,
-            HOME: getHomeDir(),
-            ...(shellPath ? { PATH: shellPath } : {}),
-            ...this.config.env,
-        };
+        const env = buildStdioEnvironment(defaultEnv, {
+            homeDir: getHomeDir(),
+            shellPath,
+            configEnv: this.config.env,
+        });
 
         this.transport = new StdioClientTransport({
             command,
