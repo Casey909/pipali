@@ -887,7 +887,9 @@ export async function* research(config: ResearchConfig): AsyncGenerator<Research
             }
             if (retryWarnings > MAX_RETRY_WARNINGS) {
                 log.error({ attempt: retryWarnings, warning: iteration.warning }, 'Too many retry warnings, stopping research');
-                iteration.message = iteration.warning;
+                // End research with an empty message so the warning doesn't surface
+                // as a top-level assistant response to the user
+                iteration.message = '';
                 iteration.toolCalls = [];
                 yield iteration;
                 break;
