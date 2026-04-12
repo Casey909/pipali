@@ -58,9 +58,14 @@ function formatSchedule(automation: AutomationInfo, t: TFunction): string {
     // Weekly
     if (dayOfMonth === '*' && dayOfWeek !== '*') {
         const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const dayKey = dayKeys[parseInt(dayOfWeek, 10)] ?? 'sunday';
-        const dayName = t(`automations.days.${dayKey}`);
-        return t('automations.weeklyOn', { day: dayName, time: timeStr });
+        const dayNames = dayOfWeek.split(',').map(d => {
+            const dayKey = dayKeys[parseInt(d.trim(), 10)] ?? 'sunday';
+            return t(`automations.days.${dayKey}`);
+        });
+        const dayStr = dayNames.length > 1
+            ? dayNames.slice(0, -1).join(', ') + ' ' + t('automations.and') + ' ' + dayNames[dayNames.length - 1]
+            : dayNames[0];
+        return t('automations.weeklyOn', { day: dayStr, time: timeStr });
     }
 
     // Monthly

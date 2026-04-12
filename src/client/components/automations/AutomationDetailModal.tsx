@@ -25,7 +25,7 @@ interface AutomationDetailModalProps {
 // Parse cron schedule to UI state
 function parseCronSchedule(schedule: string): {
     frequency: FrequencyType;
-    dayOfWeek: DayOfWeek;
+    daysOfWeek: DayOfWeek[];
     dayOfMonth: number;
     minuteOfHour: number;
     time: string;
@@ -41,7 +41,7 @@ function parseCronSchedule(schedule: string): {
     const timeFormatted = `${hourNum}:${minute.padStart(2, '0')}`;
 
     let frequency: FrequencyType = 'day';
-    let parsedDayOfWeek: DayOfWeek = 'monday';
+    let parsedDaysOfWeek: DayOfWeek[] = ['monday'];
     let parsedDayOfMonth = 1;
     let parsedMinuteOfHour = minuteNum;
 
@@ -53,13 +53,16 @@ function parseCronSchedule(schedule: string): {
         parsedDayOfMonth = parseInt(dayOfMonth, 10);
     } else if (dayOfWeek !== '*') {
         frequency = 'week';
-        const dayIndex = parseInt(dayOfWeek, 10);
-        parsedDayOfWeek = DAYS_OF_WEEK[dayIndex]?.value ?? 'monday';
+        // Parse comma-separated day indices (e.g., "1,3,5")
+        parsedDaysOfWeek = dayOfWeek.split(',').map(d => {
+            const dayIndex = parseInt(d.trim(), 10);
+            return DAYS_OF_WEEK[dayIndex]?.value ?? 'monday';
+        });
     }
 
     return {
         frequency,
-        dayOfWeek: parsedDayOfWeek,
+        daysOfWeek: parsedDaysOfWeek,
         dayOfMonth: parsedDayOfMonth,
         minuteOfHour: parsedMinuteOfHour,
         time: timeFormatted,
@@ -69,7 +72,7 @@ function parseCronSchedule(schedule: string): {
 // Build cron schedule from UI state
 function buildCronSchedule(
     frequency: FrequencyType,
-    dayOfWeek: DayOfWeek,
+    daysOfWeek: DayOfWeek[],
     dayOfMonth: number,
     minuteOfHour: number,
     time: string
@@ -82,8 +85,11 @@ function buildCronSchedule(
         case 'day':
             return `${timeMinute} ${hour} * * *`;
         case 'week':
-            const weekdayIndex = DAYS_OF_WEEK.findIndex(d => d.value === dayOfWeek);
-            return `${timeMinute} ${hour} * * ${weekdayIndex}`;
+            const weekdayIndices = daysOfWeek
+                .map(d => DAYS_OF_WEEK.findIndex(day => day.value === d))
+                .sort((a, b) => a - b)
+                .join(',');
+            return `${timeMinute} ${hour} * * ${weekdayIndices}`;
         case 'month':
             return `${timeMinute} ${hour} ${dayOfMonth} * *`;
         default:
@@ -133,9 +139,14 @@ function formatSchedule(automation: AutomationInfo, t: TFunction): string {
 
     if (dayOfMonth === '*' && dayOfWeek !== '*') {
         const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const dayKey = dayKeys[parseInt(dayOfWeek, 10)] ?? 'sunday';
-        const dayName = t(`automations.days.${dayKey}`);
-        return t('automations.everyDayOfWeekAt', { day: dayName, time: timeStr });
+        const dayNames = dayOfWeek.split(',').map(d => {
+            const dayKey = dayKeys[parseInt(d.trim(), 10)] ?? 'sunday';
+            return t(`automations.days.${dayKey}`);
+        });
+        const dayStr = dayNames.length > 1
+            ? dayNames.slice(0, -1).join(', ') + ' ' + t('automations.and') + ' ' + dayNames[dayNames.length - 1]
+            : dayNames[0];
+        return t('automations.everyDayOfWeekAt', { day: dayStr, time: timeStr });
     }
 
     if (dayOfMonth !== '*') {
@@ -187,10 +198,10 @@ export function AutomationDetailModal({
     // Edit form state
     const initialParsed = automation.triggerConfig?.type === 'cron'
         ? parseCronSchedule(automation.triggerConfig.schedule)
-        : { frequency: 'day' as FrequencyType, dayOfWeek: 'monday' as DayOfWeek, dayOfMonth: 1, minuteOfHour: 0, time: '12:00' };
+        : { frequency: 'day' as FrequencyType, daysOfWeek: ['monday'] as DayOfWeek[], dayOfMonth: 1, minuteOfHour: 0, time: '12:00' };
 
     const [frequency, setFrequency] = useState<FrequencyType>(initialParsed.frequency);
-    const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>(initialParsed.dayOfWeek);
+    const [daysOfWeek, setDaysOfWeek] = useState<DayOfWeek[]>(initialParsed.daysOfWeek);
     const [dayOfMonth, setDayOfMonth] = useState(initialParsed.dayOfMonth);
     const [minuteOfHour, setMinuteOfHour] = useState(initialParsed.minuteOfHour);
     const [time, setTime] = useState(initialParsed.time);
@@ -263,7 +274,7 @@ export function AutomationDetailModal({
 
             // Only include trigger config if schedule is enabled
             if (editHasSchedule) {
-                const schedule = buildCronSchedule(frequency, dayOfWeek, dayOfMonth, minuteOfHour, time);
+                const schedule = buildCronSchedule(frequency, daysOfWeek, dayOfMonth, minuteOfHour, time);
                 body.triggerType = 'cron';
                 body.triggerConfig = {
                     type: 'cron',
@@ -549,18 +560,25 @@ export function AutomationDetailModal({
                                             {frequency === 'week' && (
                                                 <div className="frequency-detail">
                                                     <p className="frequency-detail-label">{t('automations.weekDayPromptDetail')}</p>
-                                                    <div className="frequency-row">
-                                                        <Calendar size={16} className="frequency-icon" />
-                                                        <span className="frequency-label">{t('automations.on')}</span>
-                                                        <select
-                                                            value={dayOfWeek}
-                                                            onChange={(e) => setDayOfWeek(e.target.value as DayOfWeek)}
-                                                            className="frequency-select"
-                                                        >
-                                                            {DAYS_OF_WEEK.map(day => (
-                                                                <option key={day.value} value={day.value}>{day.label}</option>
-                                                            ))}
-                                                        </select>
+                                                    <div className="day-toggle-group">
+                                                        {DAYS_OF_WEEK.map(day => (
+                                                            <button
+                                                                key={day.value}
+                                                                type="button"
+                                                                className={`day-toggle${daysOfWeek.includes(day.value) ? ' active' : ''}`}
+                                                                onClick={() => {
+                                                                    setDaysOfWeek(prev => {
+                                                                        if (prev.includes(day.value)) {
+                                                                            if (prev.length === 1) return prev;
+                                                                            return prev.filter(d => d !== day.value);
+                                                                        }
+                                                                        return [...prev, day.value];
+                                                                    });
+                                                                }}
+                                                            >
+                                                                {day.label.slice(0, 3)}
+                                                            </button>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}

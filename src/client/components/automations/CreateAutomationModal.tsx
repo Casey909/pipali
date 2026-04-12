@@ -37,7 +37,7 @@ export function CreateAutomationModal({ onClose, onCreated }: CreateAutomationMo
     // Schedule state (optional)
     const [hasSchedule, setHasSchedule] = useState(false);
     const [frequency, setFrequency] = useState<FrequencyType>('day');
-    const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>('monday');
+    const [daysOfWeek, setDaysOfWeek] = useState<DayOfWeek[]>(['monday']);
     const [dayOfMonth, setDayOfMonth] = useState(1);
     const [minuteOfHour, setMinuteOfHour] = useState(0);
     const [time, setTime] = useState('12:00');
@@ -60,9 +60,12 @@ export function CreateAutomationModal({ onClose, onCreated }: CreateAutomationMo
                 // Every day at the specified time
                 return `${timeMinute} ${hour} * * *`;
             case 'week':
-                // Every week on the specified day
-                const weekdayIndex = DAYS_OF_WEEK.findIndex(d => d.value === dayOfWeek);
-                return `${timeMinute} ${hour} * * ${weekdayIndex}`;
+                // Every week on the specified day(s)
+                const weekdayIndices = daysOfWeek
+                    .map(d => DAYS_OF_WEEK.findIndex(day => day.value === d))
+                    .sort((a, b) => a - b)
+                    .join(',');
+                return `${timeMinute} ${hour} * * ${weekdayIndices}`;
             case 'month':
                 // Every month on the specified day
                 return `${timeMinute} ${hour} ${dayOfMonth} * *`;
@@ -205,18 +208,25 @@ export function CreateAutomationModal({ onClose, onCreated }: CreateAutomationMo
                                     {frequency === 'week' && (
                                         <div className="frequency-detail">
                                             <p className="frequency-detail-label">{t('automations.weekDayPrompt')}</p>
-                                            <div className="frequency-row">
-                                                <Calendar size={16} className="frequency-icon" />
-                                                <span className="frequency-label">{t('automations.on')}</span>
-                                                <select
-                                                    value={dayOfWeek}
-                                                    onChange={(e) => setDayOfWeek(e.target.value as DayOfWeek)}
-                                                    className="frequency-select"
-                                                >
-                                                    {DAYS_OF_WEEK.map(day => (
-                                                        <option key={day.value} value={day.value}>{day.label}</option>
-                                                    ))}
-                                                </select>
+                                            <div className="day-toggle-group">
+                                                {DAYS_OF_WEEK.map(day => (
+                                                    <button
+                                                        key={day.value}
+                                                        type="button"
+                                                        className={`day-toggle${daysOfWeek.includes(day.value) ? ' active' : ''}`}
+                                                        onClick={() => {
+                                                            setDaysOfWeek(prev => {
+                                                                if (prev.includes(day.value)) {
+                                                                    if (prev.length === 1) return prev;
+                                                                    return prev.filter(d => d !== day.value);
+                                                                }
+                                                                return [...prev, day.value];
+                                                            });
+                                                        }}
+                                                    >
+                                                        {day.label.slice(0, 3)}
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
                                     )}
