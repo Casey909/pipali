@@ -117,8 +117,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 ? `${baseUrl}/api/auth/callback?desktop=1`
                 : `${baseUrl}/api/auth/callback`;
 
-            // Build full login URL
-            const loginUrl = `${url}/login?redirect_uri=${encodeURIComponent(callbackUrl)}`;
+            // Build full login URL with source=app to distinguish from direct platform login
+            const loginUrl = `${url}/login?redirect_uri=${encodeURIComponent(callbackUrl)}&source=app`;
 
             // In desktop mode, open in system browser and poll for completion
             if (isDesktop) {

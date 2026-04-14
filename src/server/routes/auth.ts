@@ -117,7 +117,7 @@ auth.post('/logout', async (c) => {
 auth.get('/oauth/google/url', async (c) => {
     const platformUrl = getPlatformUrl();
     const callbackUrl = c.req.query('callback_url') || `${new URL(c.req.url).origin}/api/auth/callback`;
-    const oauthUrl = `${platformUrl}/auth/oauth/google/authorize?redirect_uri=${encodeURIComponent(callbackUrl)}`;
+    const oauthUrl = `${platformUrl}/auth/oauth/google/authorize?redirect_uri=${encodeURIComponent(callbackUrl)}&source=app`;
     return c.json({ url: oauthUrl });
 });
 
