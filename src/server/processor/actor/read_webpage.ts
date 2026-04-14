@@ -63,6 +63,7 @@ async function readWithPlatform(
     url: string,
     query: string | undefined,
     conversationId?: string,
+    runId?: string,
 ): Promise<string | null> {
     const endpoint = `${getPlatformUrl()}/tools/read-webpage`;
 
@@ -75,6 +76,7 @@ async function readWithPlatform(
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (conversationId) headers['X-Pipali-Conversation-ID'] = conversationId;
+    if (runId) headers['X-Pipali-Run-ID'] = runId;
 
     const result = await platformFetch<{ content?: string; title?: string; url: string }>(endpoint, {
         method: 'POST',
@@ -205,6 +207,7 @@ export async function readWebpage(
     args: ReadWebpageArgs,
     options?: ReadWebpageOptions | MetricsAccumulator,
     conversationId?: string,
+    runId?: string,
 ): Promise<ReadWebpageResult> {
     const { url, query } = args;
 
@@ -261,7 +264,7 @@ export async function readWebpage(
 
         // Try platform scraper first
         try {
-            rawContent = await readWithPlatform(url, query, conversationId);
+            rawContent = await readWithPlatform(url, query, conversationId, runId);
             if (rawContent) usedPlatform = true;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);

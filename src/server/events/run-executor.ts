@@ -190,6 +190,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<void> {
                 confirmationContext,
                 systemPrompt: systemPromptOverride,
                 chatModelId,
+                runId: runIdAuthoritative,
             });
 
             let iteratorResult = await runner.next();

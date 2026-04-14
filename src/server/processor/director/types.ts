@@ -60,6 +60,8 @@ export interface ToolExecutionContext {
     metricsAccumulator?: MetricsAccumulator;
     /** Conversation ID for tools that need to reference the current conversation */
     conversationId?: string;
+    /** Unique ID of current research run */
+    runId?: string;
     /** Tracks one-time reminders shown during this research run (persists across iterations) */
     shownReminders?: Set<string>;
 }

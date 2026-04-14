@@ -93,6 +93,8 @@ interface ResearchConfig {
     confirmationContext?: ConfirmationContext;
     // Chat model ID to use for this conversation (overrides user's default)
     chatModelId?: number;
+    // Unique ID of current research run
+    runId?: string;
     // Step count when iteration threshold was first reached, for stable warning injection
     thresholdStepCount?: number;
     // Whether this is the user's very first conversation ever
@@ -549,6 +551,7 @@ async function pickNextTool(
             false,     // fastMode
             config.user, // user - for user's selected model
             config.chatModelId,
+            config.runId,
         );
 
         // Check if response is valid
@@ -773,6 +776,7 @@ async function executeTool(
                         metricsAccumulator: context?.metricsAccumulator,
                     },
                     context?.conversationId,
+                    context?.runId,
                 );
                 return result.compiled;
             }
@@ -994,6 +998,7 @@ export async function* research(config: ResearchConfig): AsyncGenerator<Research
             confirmation: config.confirmationContext,
             metricsAccumulator,
             conversationId: config.conversationId,
+            runId: config.runId,
             shownReminders,
         };
         iteration.toolResults = await executeToolsInParallel(iteration.toolCalls, executionContext, config.abortSignal);

@@ -45,6 +45,8 @@ export interface ResearchRunnerOptions {
     confirmationContext?: ConfirmationContext;
     /** Chat model ID to use for this conversation */
     chatModelId?: number;
+    /** Unique ID of current research run */
+    runId?: string;
     /** Callback when tool calls are about to start (before execution) */
     onToolCallStart?: (iteration: ResearchIteration) => void;
     /** Callback when an iteration completes (after execution) */
@@ -150,6 +152,9 @@ export async function* runResearchWithConversation(
     let iterationCount = 0;
     let systemPromptPersisted = false;
 
+    // ID to track research run
+    const runId = options.runId ?? crypto.randomUUID();
+
     // Load user context for personalization
     const userContext = await loadUserContext();
 
@@ -168,6 +173,7 @@ export async function* runResearchWithConversation(
         confirmationContext,
         chatModelId: options.chatModelId,
         conversationId,
+        runId,
     })) {
         // On first iteration (new conversation), persist system prompt and user message to DB
         // System prompt is persisted first to maintain correct ordering: system → user → agent

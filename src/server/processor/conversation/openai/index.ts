@@ -16,6 +16,7 @@ export async function sendMessageToGpt(
     toolChoice: string = 'auto',
     pricing?: PricingConfig,
     conversationId?: string,
+    runId?: string,
 ): Promise<ResponseWithThought> {
     const openaiTools = toOpenaiTools(tools);
 
@@ -24,13 +25,19 @@ export async function sendMessageToGpt(
         baseURL: apiBaseUrl ?? undefined,
     });
 
+    // Build metadata to trace message provenance
+    const tracer = {
+        ...(conversationId && { conversation_id: conversationId }),
+        ...(runId && { run_id: runId }),
+    };
+
     // Use streaming to avoid timeout issues
     const stream = client.responses.stream({
         model: model,
         input: messages,
         tools: openaiTools,
         tool_choice: openaiTools ? toolChoice as Responses.ToolChoiceOptions : undefined,
-        ...(conversationId && { metadata: { conversation_id: conversationId } }),
+        ...(Object.keys(tracer).length > 0 && { metadata: tracer }),
     });
 
     const response = await stream.finalResponse();

@@ -28,6 +28,7 @@ export async function sendMessageToModel(
     fastMode: boolean = false,
     user?: typeof User.$inferSelect,
     chatModelId?: number,
+    runId?: string,
 ) {
     // Check for test mock (E2E tests inject this via preload)
     if (globalThis.__pipaliMockLLM) {
@@ -92,6 +93,7 @@ export async function sendMessageToModel(
                     toolChoice,
                     pricing,
                     conversationId,
+                    runId,
                 );
             });
             log.info({ model: modelName, durationMs: Date.now() - startTime }, 'Response received');
