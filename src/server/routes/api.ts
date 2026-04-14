@@ -366,7 +366,10 @@ api.delete('/conversations/:conversationId', async (c) => {
         return c.json({ error: 'Invalid conversation ID' }, 400);
     }
 
-    await db.delete(Conversation).where(eq(Conversation.id, conversationId));
+    const deleted = await db.delete(Conversation).where(eq(Conversation.id, conversationId)).returning();
+    if (deleted.length === 0) {
+        return c.json({ error: 'Conversation not found' }, 404);
+    }
     return c.json({ success: true });
 });
 

@@ -255,7 +255,11 @@ automations.delete('/:id', async (c) => {
     // Stop any running schedulers/watchers
     await deactivateAutomation(id);
 
-    await db.delete(Automation).where(eq(Automation.id, id));
+    const deleted = await db.delete(Automation).where(eq(Automation.id, id)).returning();
+
+    if (deleted.length === 0) {
+        return c.json({ error: 'Automation not found' }, 404);
+    }
 
     log.info(`Deleted automation: ${id}`);
     return c.json({ success: true });
