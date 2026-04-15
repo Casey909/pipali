@@ -171,7 +171,7 @@ export function ThoughtItem({ thought, stepNumber, isPreview = false, showResult
                                 <ListResultView result={thought.toolResult} />
                             )}
                             {/* Show bash command view */}
-                            {toolName === 'shell_command' && thought.toolArgs?.command && (
+                            {toolName === 'shell_command' && thought.toolArgs?.command && !isInterrupted && (
                                 <BashCommandView
                                     command={thought.toolArgs.command}
                                     justification={thought.toolArgs.justification}
