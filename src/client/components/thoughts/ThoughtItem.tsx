@@ -109,10 +109,7 @@ export function ThoughtItem({ thought, stepNumber, isPreview = false, showResult
 
         // Determine success/error status for step indicator (pending takes precedence)
         const stepStatus = thought.isPending ? 'pending' : getToolResultStatus(thought.toolResult, toolName);
-        const hasExpandableContent = !!thought.toolResult
-            || (toolName === 'edit_file' && thought.toolArgs?.old_string)
-            || (toolName === 'write_file' && thought.toolArgs?.content);
-        const canToggle = onToggle && hasExpandableContent;
+        const canToggle = !!onToggle;
 
         return (
             <div className={`thought-item ${isPreview ? 'preview' : ''} ${thought.isPending ? 'pending' : ''}`}>
