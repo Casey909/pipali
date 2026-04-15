@@ -81,6 +81,11 @@ async function ensureSystemPromptPersisted(
     const isFirstEverConversation = (userMessage && isFirstRunEasterEgg(userMessage))
         || (await atifConversationService.countUserConversations(userId)) <= 1;
 
+    const modelName = conversation?.trajectory.agent.model_name.toLowerCase() || '';
+    const provideUpdatesPreamble = /^gpt-5\.[4-9]/.test(modelName)
+        ? "Provide intermediate updates to communicate progress and new information to the user as you are doing work or thinking for long. Tone of your updates must match your personality."
+        : undefined;
+
     const userContext = await loadUserContext();
     const now = new Date();
     const systemPrompt = await buildSystemPrompt({
@@ -90,6 +95,7 @@ async function ensureSystemPromptPersisted(
         language: userContext.language,
         username: userContext.name,
         userContext: userContext.instructions,
+        provideUpdatesPreamble,
         isFirstEverConversation,
         now,
     });

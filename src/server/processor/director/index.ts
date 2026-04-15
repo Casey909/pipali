@@ -110,6 +110,7 @@ export async function buildSystemPrompt(args: {
     language?: string;
     username?: string;
     userContext?: string;
+    provideUpdatesPreamble?: string;
     isFirstEverConversation?: boolean;
     now?: Date;
 }): Promise<string> {
@@ -117,6 +118,10 @@ export async function buildSystemPrompt(args: {
 
     const userContext = args.userContext
         ? await prompts.userContext.format({ userContext: args.userContext })
+        : '';
+
+    const provideUpdatesPreamble = args.provideUpdatesPreamble
+        ? `\n- ${args.provideUpdatesPreamble}`
         : '';
 
     const skillsContext = formatSkillsForPrompt(getLoadedSkills().filter(s => s.visible));
@@ -136,6 +141,7 @@ export async function buildSystemPrompt(args: {
         username: args.username ?? 'User',
         language: new Intl.DisplayNames(['en'], { type: 'language' }).of(args.language || Intl.DateTimeFormat().resolvedOptions().locale) ?? 'English',
         os_info: `${process.platform} ${process.arch}`,
+        provide_updates_preamble: provideUpdatesPreamble,
     });
 }
 

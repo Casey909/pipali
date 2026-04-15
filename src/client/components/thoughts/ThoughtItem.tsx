@@ -64,6 +64,12 @@ function formatBoldText(text: string): React.ReactNode[] {
     });
 }
 
+// Clear markdown formatting markers from text
+function formatPlainText(text: string): string {
+    // Remove bold markers to start with; can expand to clear other formatting later
+    return text.replace(/\*\*([^*]+)\*\*/g, '$1');
+}
+
 export function ThoughtItem({ thought, stepNumber, isPreview = false, showResult = true, onToggle, uidMap }: ThoughtItemProps) {
     // Track whether the reasoning text is overflowing (truncated by ellipsis)
     const [isOverflowing, setIsOverflowing] = useState(false);
@@ -91,7 +97,7 @@ export function ThoughtItem({ thought, stepNumber, isPreview = false, showResult
                         className={`thought-reasoning ${isInternal ? 'italic' : ''} ${isOutline ? 'outline' : ''}`}
                         title={isTruncated ? text : undefined}
                     >
-                        {formatBoldText(displayText)}
+                        {isInternal ? formatPlainText(displayText) : formatBoldText(displayText)}
                     </div>
                 </div>
             </div>
