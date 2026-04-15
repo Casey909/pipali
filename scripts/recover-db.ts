@@ -111,7 +111,14 @@ async function main() {
 
     // Step 4: Open database and mark migrations as applied
     const db = await PGlite.create(DB_PATH);
-    
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS __drizzle_migrations (
+            id SERIAL PRIMARY KEY,
+            hash TEXT NOT NULL,
+            created_at BIGINT
+        )
+    `);
     await db.query("DELETE FROM __drizzle_migrations");
     
     for (const hash of migrations) {
