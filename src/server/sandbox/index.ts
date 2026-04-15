@@ -15,8 +15,6 @@ import path from 'path';
 import { SandboxManager } from '@anthropic-ai/sandbox-runtime';
 import { createChildLogger } from '../logger';
 
-// Platform type matching @anthropic-ai/sandbox-runtime
-type Platform = 'macos' | 'linux' | 'windows' | 'unknown';
 import {
     type SandboxConfig,
     getDefaultConfig,
@@ -35,22 +33,6 @@ let initialized = false;
 
 // Default user ID (we're single-user for now)
 const DEFAULT_USER_ID = 1;
-
-/**
- * Map Node.js platform to sandbox-runtime Platform type
- */
-function getPlatformType(): Platform {
-    switch (process.platform) {
-        case 'darwin':
-            return 'macos';
-        case 'linux':
-            return 'linux';
-        case 'win32':
-            return 'windows';
-        default:
-            return 'unknown';
-    }
-}
 
 /**
  * Initialize the sandbox runtime.
@@ -72,11 +54,10 @@ export async function initializeSandbox(): Promise<void> {
         currentConfig = await ensureSandboxSettings(DEFAULT_USER_ID);
 
         // Check if sandboxing is supported on this platform
-        const platform = getPlatformType();
-        const supported = SandboxManager.isSupportedPlatform(platform);
+        const supported = SandboxManager.isSupportedPlatform();
 
         if (!supported) {
-            log.info(`Sandbox not supported on ${platform}, will use confirmation-based security`);
+            log.info(`Sandbox not supported on ${process.platform}, will use confirmation-based security`);
             initialized = true;
             return;
         }
@@ -104,7 +85,7 @@ export async function initializeSandbox(): Promise<void> {
         }
 
         log.info({
-            platform,
+            platform: process.platform,
             hasDepends,
             allowWrite: runtimeConfig.filesystem.allowWrite,
         }, 'Sandbox initialized');
@@ -163,8 +144,7 @@ export async function reloadSandboxConfig(): Promise<void> {
         return;
     }
 
-    const platform = getPlatformType();
-    if (!SandboxManager.isSupportedPlatform(platform)) {
+    if (!SandboxManager.isSupportedPlatform()) {
         return;
     }
 
@@ -185,8 +165,7 @@ export function isSandboxEnabled(): boolean {
  * Check if sandboxing is supported on this platform.
  */
 export function isSandboxSupported(): boolean {
-    const platform = getPlatformType();
-    return SandboxManager.isSupportedPlatform(platform);
+    return SandboxManager.isSupportedPlatform();
 }
 
 /**
