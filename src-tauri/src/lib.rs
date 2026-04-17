@@ -676,6 +676,14 @@ pub fn run() {
                         _ => {}
                     }
                 }
+                #[cfg(target_os = "macos")]
+                tauri::RunEvent::Reopen { has_visible_windows, .. } => {
+                    // User clicked the dock icon while app was hidden to tray.
+                    // Reveal the window so the click does what the user expects.
+                    if !has_visible_windows {
+                        show_window(app_handle);
+                    }
+                }
                 tauri::RunEvent::ExitRequested { .. } => {
                     // Graceful shutdown on app exit (Cmd+Q, etc.)
                     log::info!("[App] Exit requested, stopping sidecar...");
