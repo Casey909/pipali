@@ -216,6 +216,33 @@ const App = () => {
             setBillingAlerts([]);
             fetchConversations();
         },
+        onAuthError: (authError, convId) => {
+            console.warn("Auth error:", authError);
+
+            if (convId) {
+                removeConversationState(convId);
+            }
+
+            if (!convId || convId === conversationIdRef.current) {
+                const authMsgId = generateUUID();
+                const next = [
+                    ...messagesRef.current,
+                    {
+                        id: authMsgId,
+                        stableId: authMsgId,
+                        role: 'assistant' as const,
+                        content: '',
+                        authInfo: { code: authError.code, message: authError.message },
+                    },
+                ];
+                setChatMessages(next);
+                if (convId) syncConversationState(convId, next);
+            }
+
+            // Refresh auth status — if refresh truly failed server-side,
+            // this will flip the app to the LoginPage.
+            fetchAuthStatus();
+        },
         onBillingError: (billingError, convId) => {
             console.warn("Billing error:", billingError);
 
@@ -1225,6 +1252,21 @@ const App = () => {
         sendWsMessage(continueMessage, conversationId, { clientMessageId, runId, optimistic: false });
     };
 
+    // ===== Auth Actions =====
+
+    const handleAuthDismiss = (messageId: string) => {
+        const next = messages.filter(m => m.id !== messageId);
+        setChatMessages(next);
+        if (conversationId) syncConversationState(conversationId, next);
+    };
+
+    const handleAuthSignIn = async (messageId: string) => {
+        handleAuthDismiss(messageId);
+        // Log out to clear any stale tokens; this forces the LoginPage to render
+        // so the user can complete a fresh sign-in flow.
+        await handleLogout();
+    };
+
     // ===== Message Sending =====
 
     const sendConfirmationResponse = (convId: string, requestId: string, optionId: string, guidance?: string) => {
@@ -1502,7 +1544,7 @@ const App = () => {
                     )}
                     {currentPage === 'chat' && (
                         <ErrorBoundary>
-                            <MessageList messages={messages} conversationId={conversationId} platformFrontendUrl={platformFrontendUrl} onDeleteMessage={deleteMessage} onBillingContinue={handleBillingContinue} onBillingDismiss={handleBillingDismiss} userFirstName={userName?.split(' ')[0] ?? authStatus?.user?.name?.split(' ')[0]} />
+                            <MessageList messages={messages} conversationId={conversationId} platformFrontendUrl={platformFrontendUrl} onDeleteMessage={deleteMessage} onBillingContinue={handleBillingContinue} onBillingDismiss={handleBillingDismiss} onAuthSignIn={handleAuthSignIn} onAuthDismiss={handleAuthDismiss} userFirstName={userName?.split(' ')[0] ?? authStatus?.user?.name?.split(' ')[0]} />
                         </ErrorBoundary>
                     )}
 

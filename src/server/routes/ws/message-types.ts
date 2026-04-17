@@ -242,6 +242,21 @@ export interface BillingError {
     spend_hard_limit_cents?: number;
 }
 
+/**
+ * Platform authentication error (session expired, refresh failed)
+ */
+export interface AuthErrorMessage {
+    type: 'auth_error';
+    conversationId?: string;
+    runId?: string;
+    error: AuthError;
+}
+
+export interface AuthError {
+    code: 'session_expired';
+    message: string;
+}
+
 export type ServerMessage =
     | ConversationCreatedMessage
     | RunStartedMessage
@@ -255,7 +270,8 @@ export type ServerMessage =
     | UserStepSavedMessage
     | CompactionMessage
     | ObserveStatusMessage
-    | BillingErrorMessage;
+    | BillingErrorMessage
+    | AuthErrorMessage;
 
 // ============================================================================
 // Helper Types

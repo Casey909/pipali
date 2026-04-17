@@ -11,6 +11,10 @@ export type Message = {
         code: 'insufficient_credits' | 'spend_limit_reached';
         message: string;
     };
+    authInfo?: {
+        code: 'session_expired';
+        message: string;
+    };
     /** File names attached by the user (extracted from <attached_files> block) */
     attachedFiles?: string[];
 };

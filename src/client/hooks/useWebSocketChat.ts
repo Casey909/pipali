@@ -17,7 +17,7 @@
  */
 
 import { useReducer, useRef, useCallback, useEffect } from 'react';
-import type { Message, Thought, ConversationState, ConfirmationRequest, BillingError } from '../types';
+import type { Message, Thought, ConversationState, ConfirmationRequest, BillingError, AuthError } from '../types';
 import { acquireWakeLock, releaseWakeLock } from '../utils/tauri';
 import { formatToolCallsForSidebar, generateUUID, generateDeterministicId } from '../utils/formatting';
 import { trimHistoryTailAfterUser, mergeHistoryWithLive } from '../utils/chat-messages';
@@ -67,6 +67,7 @@ export type ChatAction =
     | { type: 'MESSAGE_DELETED'; conversationId: string; role: 'user' | 'assistant'; stepId: number }
     | { type: 'USER_STEP_SAVED'; conversationId: string; runId: string; clientMessageId: string; stepId: number; message?: string }
     | { type: 'BILLING_ERROR'; conversationId?: string; runId?: string; error: BillingError }
+    | { type: 'AUTH_ERROR'; conversationId?: string; runId?: string; error: AuthError }
     | { type: 'COMPACTION'; conversationId: string; runId: string; summary: string }
     | { type: 'CLEAR_CONVERSATION' }
     | { type: 'SYNC_CONVERSATION_STATE'; conversationId: string; messages: Message[] }
@@ -627,7 +628,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             const messageId = String(stepId);
 
             const finalizeMessages = (msgs: Message[]): Message[] => {
-                const filteredMsgs = msgs.filter(msg => !msg.billingInfo);
+                const filteredMsgs = msgs.filter(msg => !msg.billingInfo && !msg.authInfo);
 
                 // Silent completion (e.g. research terminated by repeated warnings) —
                 // no final assistant message to show, just clean up streaming state
@@ -961,7 +962,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             };
         }
 
-        case 'BILLING_ERROR': {
+        case 'BILLING_ERROR':
+        case 'AUTH_ERROR': {
             const { conversationId } = action;
             const isCurrentConversation = !conversationId || conversationId === state.conversationId;
 
@@ -1245,6 +1247,7 @@ export interface UseWebSocketChatOptions {
     onConfirmationRequest?: (request: ConfirmationRequest, conversationId: string, runId: string) => void;
     onTaskComplete?: (request: string | undefined, response: string, conversationId: string) => void;
     onBillingError?: (error: BillingError, conversationId?: string) => void;
+    onAuthError?: (error: AuthError, conversationId?: string) => void;
     onError?: (error: string, conversationId?: string) => void;
     shouldActivateConversationOnCreate?: (conversationId: string, history?: any[]) => boolean;
 }
@@ -1256,6 +1259,7 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
         onConfirmationRequest,
         onTaskComplete,
         onBillingError,
+        onAuthError,
         onError,
         shouldActivateConversationOnCreate,
     } = options;
@@ -1279,6 +1283,7 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
         | 'onConfirmationRequest'
         | 'onTaskComplete'
         | 'onBillingError'
+        | 'onAuthError'
         | 'onError'
         | 'shouldActivateConversationOnCreate'
     >>({
@@ -1286,6 +1291,7 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
         onConfirmationRequest,
         onTaskComplete,
         onBillingError,
+        onAuthError,
         onError,
         shouldActivateConversationOnCreate,
     });
@@ -1296,6 +1302,7 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
             onConfirmationRequest,
             onTaskComplete,
             onBillingError,
+            onAuthError,
             onError,
             shouldActivateConversationOnCreate,
         };
@@ -1304,6 +1311,7 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
         onConfirmationRequest,
         onTaskComplete,
         onBillingError,
+        onAuthError,
         onError,
         shouldActivateConversationOnCreate,
     ]);
@@ -1330,6 +1338,7 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
             onConfirmationRequest: onConfirmationRequestCb,
             onTaskComplete: onTaskCompleteCb,
             onBillingError: onBillingErrorCb,
+            onAuthError: onAuthErrorCb,
             onError: onErrorCb,
             shouldActivateConversationOnCreate: shouldActivateConversationOnCreateCb,
         } = callbacksRef.current;
@@ -1451,6 +1460,11 @@ export function useWebSocketChat(options: UseWebSocketChatOptions) {
             case 'billing_error':
                 dispatch({ type: 'BILLING_ERROR', conversationId: convId, runId, error: message.error });
                 onBillingErrorCb?.(message.error, convId);
+                break;
+
+            case 'auth_error':
+                dispatch({ type: 'AUTH_ERROR', conversationId: convId, runId, error: message.error });
+                onAuthErrorCb?.(message.error, convId);
                 break;
 
             case 'compaction':

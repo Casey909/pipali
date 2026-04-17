@@ -13,10 +13,12 @@ interface MessageListProps {
     onDeleteMessage?: (messageId: string, role: 'user' | 'assistant') => void;
     onBillingContinue?: (messageId: string) => void;
     onBillingDismiss?: (messageId: string) => void;
+    onAuthSignIn?: (messageId: string) => void;
+    onAuthDismiss?: (messageId: string) => void;
     userFirstName?: string;
 }
 
-export function MessageList({ messages, conversationId, platformFrontendUrl, onDeleteMessage, onBillingContinue, onBillingDismiss, userFirstName }: MessageListProps) {
+export function MessageList({ messages, conversationId, platformFrontendUrl, onDeleteMessage, onBillingContinue, onBillingDismiss, onAuthSignIn, onAuthDismiss, userFirstName }: MessageListProps) {
     const lastUserMessageRef = useRef<HTMLDivElement>(null);
     const mainContentRef = useRef<HTMLElement>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -152,7 +154,7 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
                                     else messageRefsMap.current.delete(index);
                                 }}
                             >
-                                <MessageItem message={msg} platformFrontendUrl={platformFrontendUrl} onDelete={onDeleteMessage} onBillingContinue={onBillingContinue} onBillingDismiss={onBillingDismiss} />
+                                <MessageItem message={msg} platformFrontendUrl={platformFrontendUrl} onDelete={onDeleteMessage} onBillingContinue={onBillingContinue} onBillingDismiss={onBillingDismiss} onAuthSignIn={onAuthSignIn} onAuthDismiss={onAuthDismiss} />
                             </div>
                         ))}
                     </div>

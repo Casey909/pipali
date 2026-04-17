@@ -208,10 +208,13 @@
     padding: 8px 14px;
     font-size: 13px;
     font-weight: 500;
+    font-family: inherit;
     text-decoration: none;
     background: var(--color-warning);
     color: white;
+    border: none;
     border-radius: var(--radius-sm);
+    cursor: pointer;
     transition: all var(--transition);
 }
 

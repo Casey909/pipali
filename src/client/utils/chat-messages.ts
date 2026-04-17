@@ -40,8 +40,9 @@ export function trimHistoryTailAfterUser(messages: Message[]): Message[] {
  * should NOT be preserved to avoid duplication.
  */
 export function shouldPreserveLiveMessage(msg: Message): boolean {
-    // Billing/errors etc aren't persisted
+    // Billing/auth/errors etc aren't persisted
     if (msg.billingInfo) return true;
+    if (msg.authInfo) return true;
     // Keep in-progress streaming placeholders
     if (msg.isStreaming) return true;
     // Keep run-based assistant messages that have content (completed but not yet

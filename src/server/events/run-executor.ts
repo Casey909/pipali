@@ -11,6 +11,7 @@ import type { QueuedMessage, StopReason } from '../routes/ws/message-types';
 import { type ConversationEventBus, type RunHandle, createRunHandle } from './conversation-event-bus';
 import { runResearchWithConversation, ResearchPausedError } from '../processor/research-runner';
 import { PlatformBillingError } from '../http/billing-errors';
+import { PlatformAuthError } from '../http/platform-fetch';
 import { atifConversationService } from '../processor/conversation/atif/atif.service';
 import { buildSystemPrompt } from '../processor/director';
 import { loadUserContext } from '../user-context';
@@ -327,6 +328,18 @@ export async function executeRun(options: ExecuteRunOptions): Promise<void> {
                     conversationId,
                     runId: runIdAuthoritative,
                     error: error.details,
+                });
+                setSessionInactive(conversationId);
+                bus.onRunFinished();
+                return;
+            }
+
+            if (error instanceof PlatformAuthError) {
+                bus.publish({
+                    type: 'auth_error',
+                    conversationId,
+                    runId: runIdAuthoritative,
+                    error: { code: 'session_expired', message: error.message },
                 });
                 setSessionInactive(conversationId);
                 bus.onRunFinished();

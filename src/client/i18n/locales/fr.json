@@ -199,6 +199,13 @@
         "moreTasksAffected_one": "+{{count}} t\u00e2che suppl\u00e9mentaire affect\u00e9e",
         "moreTasksAffected_other": "+{{count}} t\u00e2ches suppl\u00e9mentaires affect\u00e9es"
     },
+    "authError": {
+        "sessionExpired": {
+            "title": "Session expir\u00e9e",
+            "message": "Ta session a expir\u00e9. Reconnecte-toi et on reprend l\u00e0 o\u00f9 on en \u00e9tait.",
+            "action": "Se reconnecter"
+        }
+    },
     "confirmation": {
         "titles": {
             "edit_file": "Confirmer la modification du fichier",

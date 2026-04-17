@@ -199,6 +199,13 @@
         "moreTasksAffected_one": "还有 {{count}} 个任务受影响",
         "moreTasksAffected_other": "还有 {{count}} 个任务受影响"
     },
+    "authError": {
+        "sessionExpired": {
+            "title": "会话已过期",
+            "message": "你的会话已过期。请重新登录，我们从刚才停下的地方继续。",
+            "action": "重新登录"
+        }
+    },
     "confirmation": {
         "titles": {
             "edit_file": "确认编辑文件",

@@ -176,6 +176,20 @@ export type BillingErrorMessage = {
     error: BillingError;
 };
 
+export type AuthErrorCode = 'session_expired';
+
+export interface AuthError {
+    code: AuthErrorCode;
+    message: string;
+}
+
+export type AuthErrorMessage = {
+    type: 'auth_error';
+    conversationId?: string;
+    runId?: string;
+    error: AuthError;
+};
+
 export type CompactionMessage = {
     type: 'compaction';
     conversationId: string;
@@ -201,5 +215,6 @@ export type ServerMessage =
     | ConfirmationRequestMessage
     | UserStepSavedMessage
     | BillingErrorMessage
+    | AuthErrorMessage
     | CompactionMessage
     | ObserveStatusMessage;

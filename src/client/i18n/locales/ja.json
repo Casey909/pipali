@@ -199,6 +199,13 @@
         "moreTasksAffected_one": "+{{count}}件の追加タスクに影響",
         "moreTasksAffected_other": "+{{count}}件の追加タスクに影響"
     },
+    "authError": {
+        "sessionExpired": {
+            "title": "セッションが期限切れです",
+            "message": "セッションの有効期限が切れました。もう一度サインインして、続きから再開しましょう。",
+            "action": "もう一度サインイン"
+        }
+    },
     "confirmation": {
         "titles": {
             "edit_file": "ファイル編集の確認",

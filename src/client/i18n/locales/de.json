@@ -199,6 +199,13 @@
         "moreTasksAffected_one": "+{{count}} weiterer betroffener Task",
         "moreTasksAffected_other": "+{{count}} weitere betroffene Tasks"
     },
+    "authError": {
+        "sessionExpired": {
+            "title": "Sitzung abgelaufen",
+            "message": "Deine Sitzung ist abgelaufen. Melde dich erneut an, dann machen wir dort weiter, wo wir aufgehört haben.",
+            "action": "Erneut anmelden"
+        }
+    },
     "confirmation": {
         "titles": {
             "edit_file": "Dateibearbeitung bestätigen",

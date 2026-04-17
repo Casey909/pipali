@@ -14,6 +14,7 @@ import { ExternalLink } from '../ExternalLink';
 import { safeMarkdownUrlTransform, localImageSrc } from '../../utils/markdown';
 import { getApiBaseUrl } from '../../utils/api';
 import { BillingMessage } from '../billing';
+import { AuthErrorMessage } from '../auth';
 
 interface MessageItemProps {
     message: Message;
@@ -21,9 +22,11 @@ interface MessageItemProps {
     onDelete?: (messageId: string, role: 'user' | 'assistant') => void;
     onBillingContinue?: (messageId: string) => void;
     onBillingDismiss?: (messageId: string) => void;
+    onAuthSignIn?: (messageId: string) => void;
+    onAuthDismiss?: (messageId: string) => void;
 }
 
-export function MessageItem({ message, platformFrontendUrl, onDelete, onBillingContinue, onBillingDismiss }: MessageItemProps) {
+export function MessageItem({ message, platformFrontendUrl, onDelete, onBillingContinue, onBillingDismiss, onAuthSignIn, onAuthDismiss }: MessageItemProps) {
     const { t } = useTranslation();
     const isUser = message.role === 'user';
     const [isHovered, setIsHovered] = useState(false);
@@ -40,6 +43,18 @@ export function MessageItem({ message, platformFrontendUrl, onDelete, onBillingC
                     platformFrontendUrl={platformFrontendUrl}
                     onContinue={onBillingContinue ? () => onBillingContinue(message.id) : undefined}
                     onDismiss={onBillingDismiss ? () => onBillingDismiss(message.id) : undefined}
+                />
+            </div>
+        );
+    }
+
+    // Render auth error message if present
+    if (message.authInfo) {
+        return (
+            <div className="message assistant-message">
+                <AuthErrorMessage
+                    onSignIn={() => onAuthSignIn?.(message.id)}
+                    onDismiss={onAuthDismiss ? () => onAuthDismiss(message.id) : undefined}
                 />
             </div>
         );

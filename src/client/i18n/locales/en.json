@@ -199,6 +199,13 @@
         "moreTasksAffected_one": "+{{count}} more task affected",
         "moreTasksAffected_other": "+{{count}} more tasks affected"
     },
+    "authError": {
+        "sessionExpired": {
+            "title": "Session Expired",
+            "message": "Your session has expired. Sign in again to pick up where we left off.",
+            "action": "Sign in again"
+        }
+    },
     "confirmation": {
         "titles": {
             "edit_file": "Confirm File Edit",
