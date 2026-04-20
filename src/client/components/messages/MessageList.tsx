@@ -28,6 +28,17 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
     const previousThoughtsLengthRef = useRef<number>(0);
     // Track if user is near bottom (updated on scroll events)
     const isNearBottomRef = useRef<boolean>(true);
+    // While a freshly loaded conversation's content is still settling (markdown,
+    // KaTeX, images resolve after mount), keep re-anchoring the viewport on the
+    // last user message instead of auto-scrolling to bottom.
+    const freshLoadInProgressRef = useRef<boolean>(false);
+    // Track the anchor element's offsetTop so we can correct scroll position
+    // by delta as content grows/shrinks above it, instead of re-running
+    // scrollIntoView (which can no-op if the ref is briefly null between renders).
+    const freshLoadAnchorOffsetRef = useRef<number | null>(null);
+    // scrollTop we expect after our programmatic scrolls — a divergence from
+    // this means the user scrolled, so cancel anchor tracking.
+    const freshLoadExpectedScrollTopRef = useRef<number | null>(null);
 
     // Find the index of the last user message
     const lastUserMessageIndex = messages.findLastIndex(msg => msg.role === 'user');
@@ -45,10 +56,19 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
     // Track scroll position to detect if user is near bottom
     const handleScroll = useCallback(() => {
         const container = mainContentRef.current;
-        if (container) {
-            const threshold = 150;
-            isNearBottomRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+        if (!container) return;
+        // If the user scrolls during a fresh-load anchor window, stop tracking.
+        // We compare against the scrollTop we last set programmatically; a
+        // divergence means this scroll came from the user, not from us.
+        if (freshLoadInProgressRef.current && freshLoadExpectedScrollTopRef.current !== null) {
+            if (Math.abs(container.scrollTop - freshLoadExpectedScrollTopRef.current) > 10) {
+                freshLoadInProgressRef.current = false;
+                freshLoadAnchorOffsetRef.current = null;
+                freshLoadExpectedScrollTopRef.current = null;
+            }
         }
+        const threshold = 150;
+        isNearBottomRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
     }, []);
 
     // Set up scroll listener
@@ -78,11 +98,43 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
         }
 
         if (isFreshLoad && messages.length > 0) {
-            // Use requestAnimationFrame to ensure DOM has updated with the new ref
+            // Opening an actively streaming conversation: follow the growing
+            // content to the bottom. Pinning to the last user message here
+            // would leave newly-arriving thoughts below the fold.
+            if (streamingMessage) {
+                isNearBottomRef.current = true;
+                requestAnimationFrame(() => {
+                    const container = mainContentRef.current;
+                    if (container) container.scrollTop = container.scrollHeight;
+                });
+                return;
+            }
+            // Completed conversation: anchor on last user message. Markdown,
+            // KaTeX and images settle over several frames — for very long
+            // conversations, over several seconds — so a single RAF scroll
+            // lands on a pre-final height and the viewport ends up blank
+            // until the user nudges the scrollbar. Flag it so the
+            // ResizeObserver below keeps the anchor locked via scrollTop
+            // delta until heights stabilize or the user intervenes.
+            freshLoadInProgressRef.current = true;
+            freshLoadAnchorOffsetRef.current = null;
+            freshLoadExpectedScrollTopRef.current = null;
             requestAnimationFrame(() => {
-                lastUserMessageRef.current?.scrollIntoView({ behavior: 'instant' });
+                const anchor = lastUserMessageRef.current;
+                const container = mainContentRef.current;
+                if (!anchor || !container) return;
+                anchor.scrollIntoView({ behavior: 'instant' });
+                freshLoadAnchorOffsetRef.current = anchor.offsetTop;
+                freshLoadExpectedScrollTopRef.current = container.scrollTop;
             });
-            return;
+            // Hard cap — long conversations can keep relayouting well past
+            // a few seconds, so set this generously.
+            const fallback = setTimeout(() => {
+                freshLoadInProgressRef.current = false;
+                freshLoadAnchorOffsetRef.current = null;
+                freshLoadExpectedScrollTopRef.current = null;
+            }, 15000);
+            return () => clearTimeout(fallback);
         }
 
         // Check if new messages were added (user sent a message)
@@ -123,7 +175,41 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
         const messagesEl = messagesRef.current;
         if (!container || !messagesEl) return;
 
+        let stableTimer: ReturnType<typeof setTimeout> | null = null;
         const observer = new ResizeObserver(() => {
+            if (freshLoadInProgressRef.current) {
+                // Correct scroll by the delta the anchor has shifted since
+                // the last observation. More robust than re-calling
+                // scrollIntoView (which no-ops if the ref is briefly null
+                // between renders and can jitter with inline-level anchors).
+                const anchor = lastUserMessageRef.current;
+                if (anchor) {
+                    const currentOffset = anchor.offsetTop;
+                    const savedOffset = freshLoadAnchorOffsetRef.current;
+                    if (savedOffset === null) {
+                        freshLoadAnchorOffsetRef.current = currentOffset;
+                    } else if (currentOffset !== savedOffset) {
+                        const delta = currentOffset - savedOffset;
+                        requestAnimationFrame(() => {
+                            container.scrollTop += delta;
+                            freshLoadAnchorOffsetRef.current = anchor.offsetTop;
+                            freshLoadExpectedScrollTopRef.current = container.scrollTop;
+                        });
+                    }
+                }
+                // Clear the flag once sizes stop changing for 1500ms.
+                // 300ms was too eager for long conversations — markdown +
+                // KaTeX + code highlighting fires resizes every ~16-50ms
+                // without a 300ms quiet period for many seconds.
+                if (stableTimer) clearTimeout(stableTimer);
+                stableTimer = setTimeout(() => {
+                    freshLoadInProgressRef.current = false;
+                    freshLoadAnchorOffsetRef.current = null;
+                    freshLoadExpectedScrollTopRef.current = null;
+                    stableTimer = null;
+                }, 1500);
+                return;
+            }
             if (isNearBottomRef.current) {
                 // Defer scroll to after paint so hit-test coordinates stay in sync
                 // with visual positions. Synchronous scrollTop updates during layout
@@ -135,7 +221,10 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
             }
         });
         observer.observe(messagesEl);
-        return () => observer.disconnect();
+        return () => {
+            observer.disconnect();
+            if (stableTimer) clearTimeout(stableTimer);
+        };
     }, []);
 
     return (
