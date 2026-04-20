@@ -1,8 +1,12 @@
 use std::time::Duration;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use tauri::{AppHandle, State};
 
 use crate::{show_window, start_sidecar, stop_sidecar, SidecarState};
+
+// Versioned so we can rotate the hash space if the derivation ever changes.
+const FINGERPRINT_SALT: &str = "pipali-device-fingerprint-v1";
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,6 +56,19 @@ pub async fn restart_sidecar(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn focus_window(app: AppHandle) {
     show_window(&app);
+}
+
+/// Return a stable, salted hash of the OS machine identifier.
+/// Sent to the platform on signup as an anti-abuse signal.
+/// Returns `None` if the machine ID cannot be read so callers can proceed without it.
+#[tauri::command]
+pub fn get_device_fingerprint() -> Option<String> {
+    let machine_id = machine_uid::get().ok()?;
+    let mut hasher = Sha256::new();
+    hasher.update(FINGERPRINT_SALT.as_bytes());
+    hasher.update(b":");
+    hasher.update(machine_id.as_bytes());
+    Some(hex::encode(hasher.finalize()))
 }
 
 /// Read metadata for dropped files

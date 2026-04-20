@@ -334,3 +334,20 @@ export async function getDroppedFileMetadata(paths: string[]): Promise<AttachedF
         return [];
     }
 }
+
+/**
+ * Return a stable hash of the OS machine identifier.
+ * Sent to the platform on signup as an anti-abuse signal.
+ * Returns null outside Tauri or when the machine ID cannot be read.
+ */
+export async function getDeviceFingerprint(): Promise<string | null> {
+    if (!isTauri()) return null;
+    try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const fingerprint = await invoke<string | null>('get_device_fingerprint');
+        return fingerprint ?? null;
+    } catch (err) {
+        console.warn('[getDeviceFingerprint] Failed:', err);
+        return null;
+    }
+}

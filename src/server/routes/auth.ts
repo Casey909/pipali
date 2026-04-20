@@ -117,7 +117,12 @@ auth.post('/logout', async (c) => {
 auth.get('/oauth/google/url', async (c) => {
     const platformUrl = getPlatformUrl();
     const callbackUrl = c.req.query('callback_url') || `${new URL(c.req.url).origin}/api/auth/callback`;
-    const oauthUrl = `${platformUrl}/auth/oauth/google/authorize?redirect_uri=${encodeURIComponent(callbackUrl)}&source=app`;
+    const params = new URLSearchParams({ redirect_uri: callbackUrl, source: 'app' });
+    const deviceFingerprint = c.req.query('device_fingerprint');
+    if (deviceFingerprint) {
+        params.set('device_fingerprint', deviceFingerprint);
+    }
+    const oauthUrl = `${platformUrl}/auth/oauth/google/authorize?${params.toString()}`;
     return c.json({ url: oauthUrl });
 });
 

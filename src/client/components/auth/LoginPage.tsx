@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch, getApiBaseUrl } from '../../utils/api';
-import { isDesktopMode, openInBrowser } from '../../utils/tauri';
+import { getDeviceFingerprint, isDesktopMode, openInBrowser } from '../../utils/tauri';
 
 interface AuthCapabilities {
     emailEnabled: boolean;
@@ -77,7 +77,12 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 : `${baseUrl}/api/auth/callback`;
 
             // Get the OAuth URL from the server with custom callback
-            const res = await apiFetch(`/api/auth/oauth/google/url?callback_url=${encodeURIComponent(callbackUrl)}`);
+            const deviceFingerprint = await getDeviceFingerprint();
+            const oauthUrlQuery = new URLSearchParams({ callback_url: callbackUrl });
+            if (deviceFingerprint) {
+                oauthUrlQuery.set('device_fingerprint', deviceFingerprint);
+            }
+            const res = await apiFetch(`/api/auth/oauth/google/url?${oauthUrlQuery.toString()}`);
             if (!res.ok) {
                 throw new Error('Failed to get OAuth URL');
             }

@@ -628,6 +628,7 @@ pub fn run() {
             commands::restart_sidecar,
             commands::focus_window,
             commands::get_dropped_file_metadata,
+            commands::get_device_fingerprint,
             wake_lock::acquire_wake_lock,
             wake_lock::release_wake_lock,
             notification::send_notification
