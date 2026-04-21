@@ -88,16 +88,17 @@ export function MessageList({ messages, conversationId, platformFrontendUrl, onD
         const prevLength = previousMessagesLengthRef.current;
         previousMessagesLengthRef.current = messages.length;
 
-        // Only scroll when messages transition from empty to loaded (fresh load)
-        // This handles both initial load and conversation switches
-        const isFreshLoad = prevLength === 0 && messages.length > 0;
+        // Scroll on first render of a populated conversation -
+        // either the initial load (empty to non-empty)
+        // or switch to a cached conversation (direct message array swap, so prevLength never 0).
         const isNewConversation = conversationId !== previousConversationIdRef.current;
+        const isFreshLoad = messages.length > 0 && (prevLength === 0 || isNewConversation);
 
         if (isNewConversation) {
             previousConversationIdRef.current = conversationId;
         }
 
-        if (isFreshLoad && messages.length > 0) {
+        if (isFreshLoad) {
             // Opening an actively streaming conversation: follow the growing
             // content to the bottom. Pinning to the last user message here
             // would leave newly-arriving thoughts below the fold.
