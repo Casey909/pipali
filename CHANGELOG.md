@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.5.0
+
+### 🎁 New
+- Use the app in French, German, Japanese, or Simplified Chinese
+- Schedule an automation on multiple days of the week
+
+### 🧪 Improve
+- Resize app icon to follow Apple styling guidelines on macOS
+- Reveal app window when clicking the dock icon while hidden to tray
+- Allow expanding tool call details before result arrives in trajectory outline view
+- Make GPT models emit user-friendly progress updates while working
+- Handle very long webpages consistently without truncating too early
+- Continue or dismiss directly from the inline add-credit dialog in chat
+- Show clear, actionable error when your access expires during a chat
+
+### 🛠️ Fix
+- Consistently scroll to last message and avoid sporadic blank screen when open conversation
+- Fix shell tool escaping to run more inline scripts written by Pipali
+- Fix duplicate rendering of shell command output on interrupt
+- Fix duplicate rendering of math equations
+
 ## 0.4.0
 
 ### 🎁 New
