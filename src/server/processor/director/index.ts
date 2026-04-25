@@ -365,8 +365,12 @@ REQUIRED:
                     type: 'string',
                     description: 'Query to focus the content extraction. Only information relevant to the query will be extracted from the webpage.',
                 },
+                fresh: {
+                    type: 'boolean',
+                    description: 'Set true only when cached content could make the answer wrong: live/current/latest values like rankings, prices, status, or feeds. Otherwise false.',
+                },
             },
-            required: ['url', 'query'],
+            required: ['url', 'query', 'fresh'],
         },
     },
     {
