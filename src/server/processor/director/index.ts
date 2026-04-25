@@ -308,10 +308,10 @@ REQUIRED:
                 },
                 execution_mode: {
                     type: 'string',
-                    enum: ['sandbox', 'direct'],
+                    enum: process.platform === 'win32' ? ['direct'] : ['sandbox', 'direct'],
                     description: process.platform === 'win32'
-                        ? 'Execution mode. Only "direct" is available on Windows (requires user confirmation).'
-                        : 'Execution mode: "sandbox" runs in OS-enforced sandbox (no confirmation needed, but restricted to allowed paths like /tmp/pipali and ~/.pipali). "direct" runs without sandbox (requires user confirmation, but has full access). Default: sandbox if available.',
+                        ? 'Only direct mode is available on Windows, this requires user confirmation.'
+                        : '- Sandbox mode (default): OS-enforced sandbox, no user confirmation needed but with restricted write paths like /tmp/pipali, ~/.pipali and allowed domains like localhost, github, package registries, ai cloud APIs\n- Direct mode: No sandbox, requires user confirmation but has full access',
                 },
                 cwd: {
                     type: 'string',
@@ -371,7 +371,7 @@ REQUIRED:
     },
     {
         name: 'generate_image',
-        description: 'Generate an image from a text description. Creates images based on detailed prompts. Returns the generated image. Use this when the user asks to create, generate, draw, or design an image, illustration, icon, diagram, or any visual content.',
+        description: 'Generate a raster image from a text description. Use this to create icons, illustrations, posters, unstructured diagrams or other visual assets for branding, education, documents, communication etc.',
         schema: {
             type: 'object',
             properties: {
