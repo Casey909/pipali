@@ -150,6 +150,19 @@ auth.get('/config', async (c) => {
 // HTML templates for OAuth callback
 
 /**
+ * Escape a string for safe insertion as HTML text content.
+ * Prevents XSS when user-controlled values are embedded in HTML templates.
+ */
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}
+
+/**
  * Shared CSS styles for auth pages matching the app's design system.
  * Supports both light and dark modes via prefers-color-scheme.
  */
@@ -460,7 +473,7 @@ function getAuthErrorHtml(error: string): string {
             </svg>
             <h1>Authentication failed</h1>
             <p class="subtitle">Something went wrong during authentication.</p>
-            <div class="error-details">${error}</div>
+            <div class="error-details">${escapeHtml(error)}</div>
             <a href="/login" class="btn">Try Again</a>
         </div>
     </main>

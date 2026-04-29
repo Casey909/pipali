@@ -54,6 +54,14 @@ api.use('*', cors({
     credentials: true,
 }));
 
+// Add security response headers to every API response
+api.use('*', async (c, next) => {
+    await next();
+    c.header('X-Content-Type-Options', 'nosniff');
+    c.header('X-Frame-Options', 'DENY');
+    c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+});
+
 // Health check endpoint for Tauri sidecar readiness detection
 api.get('/health', (c) => c.json({ status: 'ok' }));
 
@@ -790,6 +798,8 @@ api.put('/user/sandbox', zValidator('json', sandboxSettingsSchema), async (c) =>
 });
 
 // Upload files to /tmp/pipali/uploads/ (web mode file attachment)
+const MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB per file
+
 api.post('/upload', async (c) => {
     const body = await c.req.parseBody({ all: true });
     const files = body['files'];
@@ -802,12 +812,17 @@ api.post('/upload', async (c) => {
     const results = [];
     for (const file of fileArray) {
         if (typeof file === 'string') continue;
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+            return c.json({ error: `File "${file.name}" exceeds the maximum allowed size of 100 MB` }, 413);
+        }
         const uuid = crypto.randomUUID().slice(0, 8);
-        const fileName = file.name || 'unknown';
-        const destName = `${uuid}-${fileName}`;
+        // Use path.basename to strip any directory components from the filename,
+        // preventing path traversal attacks (e.g. "../../../etc/passwd").
+        const safeName = path.basename(file.name || 'unknown') || 'unknown';
+        const destName = `${uuid}-${safeName}`;
         const destPath = path.join(uploadDir, destName);
         await Bun.write(destPath, file);
-        results.push({ fileName, filePath: destPath, sizeBytes: file.size });
+        results.push({ fileName: safeName, filePath: destPath, sizeBytes: file.size });
     }
 
     return c.json({ files: results });
