@@ -9,6 +9,15 @@ const log = createChildLogger({ component: 'init' });
 const defaultGeminiModels = ['gemini-3-pro-preview', 'gemini-2.5-flash'];
 const defaultOpenAIModels = ['gpt-5.2'];
 const defaultAnthropicModels = ['claude-opus-4-5-20251101', 'claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'];
+const OPENAI_DEFAULT_BASE_URL = 'https://api.openai.com/v1';
+
+function parseModelList(raw?: string): string[] {
+    if (!raw) return [];
+    return raw
+        .split(',')
+        .map(model => model.trim())
+        .filter(Boolean);
+}
 
 async function setupChatModelProvider(providerName: string, modelType: 'openai' | 'google' | 'anthropic', apiKey: string, defaultModels: string[], visionEnabled: boolean, apiBaseUrl?: string) {
     const [existingProvider] = await db.select().from(AiModelApi).where(eq(AiModelApi.name, providerName));
@@ -53,8 +62,24 @@ export async function initializeDatabase() {
     const existingChatModels = await db.select().from(ChatModel).limit(1);
 
     if (existingChatModels.length === 0) {
-        if (process.env.OPENAI_API_KEY && (!process.env.OPENAI_BASE_URL || process.env.OPENAI_BASE_URL == 'https://api.openai.com/v1')) {
-            await setupChatModelProvider('OpenAI', 'openai', process.env.OPENAI_API_KEY, defaultOpenAIModels, true, process.env.OPENAI_BASE_URL);
+        const openaiBaseUrl = process.env.OPENAI_BASE_URL?.trim();
+        const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
+        const configuredOpenAiModels = parseModelList(process.env.OPENAI_MODELS);
+
+        if (openaiApiKey || openaiBaseUrl) {
+            const isDefaultOpenAiEndpoint = !openaiBaseUrl || openaiBaseUrl === OPENAI_DEFAULT_BASE_URL;
+            const providerName = isDefaultOpenAiEndpoint ? 'OpenAI' : 'OpenAI Compatible';
+            const openAiModels = configuredOpenAiModels.length > 0 ? configuredOpenAiModels : defaultOpenAIModels;
+            const visionEnabled = process.env.OPENAI_VISION_ENABLED !== 'false';
+
+            await setupChatModelProvider(
+                providerName,
+                'openai',
+                openaiApiKey || 'not-required',
+                openAiModels,
+                visionEnabled,
+                openaiBaseUrl || OPENAI_DEFAULT_BASE_URL
+            );
         }
         if (process.env.GEMINI_API_KEY) {
             await setupChatModelProvider('Google Gemini', 'google', process.env.GEMINI_API_KEY, defaultGeminiModels, true);

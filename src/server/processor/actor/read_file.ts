@@ -57,13 +57,16 @@ function sanitizeTextForJson(text: string): string {
 }
 
 // Supported image formats
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tif', '.tiff'];
 
 // Supported document formats
 const PDF_EXTENSION = '.pdf';
-const DOCX_EXTENSIONS = ['.docx', '.doc'];
+const DOCX_EXTENSIONS = ['.docx'];
 const EXCEL_EXTENSIONS = ['.xlsx'];
-const PPT_EXTENSIONS = ['.pptx', '.ppt'];
+const PPT_EXTENSIONS = ['.pptx'];
+const LEGACY_WORD_EXTENSIONS = ['.doc'];
+const LEGACY_EXCEL_EXTENSIONS = ['.xls'];
+const LEGACY_PPT_EXTENSIONS = ['.ppt'];
 
 /**
  * Check if a file path is an image based on extension
@@ -115,8 +118,28 @@ function getMimeType(filePath: string): string {
         '.jpeg': 'image/jpeg',
         '.png': 'image/png',
         '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.bmp': 'image/bmp',
+        '.tif': 'image/tiff',
+        '.tiff': 'image/tiff',
     };
     return mimeTypes[ext] || 'application/octet-stream';
+}
+
+function getLegacyOfficeWarning(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase();
+
+    if (LEGACY_WORD_EXTENSIONS.includes(ext)) {
+        return `Word file '${filePath}' uses legacy .doc format. Please convert it to .docx for reliable parsing.`;
+    }
+    if (LEGACY_EXCEL_EXTENSIONS.includes(ext)) {
+        return `Excel file '${filePath}' uses legacy .xls format. Please convert it to .xlsx for reliable parsing.`;
+    }
+    if (LEGACY_PPT_EXTENSIONS.includes(ext)) {
+        return `PowerPoint file '${filePath}' uses legacy .ppt format. Please convert it to .pptx for reliable parsing.`;
+    }
+
+    return '';
 }
 
 /**
@@ -174,11 +197,11 @@ function formatTruncationMessage(result: LineFilterResult, fileType: string = 'F
  *
  * Supports:
  * - Text files with offset/limit filtering
- * - Images (jpg, jpeg, png, webp) - returned as base64
+ * - Images (jpg, jpeg, png, webp, gif, bmp, tif, tiff) - returned as base64
  * - PDFs - text extraction with offset/limit
- * - Word documents (.docx, .doc)
- * - Excel spreadsheets (.xlsx, .xls)
- * - PowerPoint presentations (.pptx, .ppt)
+ * - Word documents (.docx)
+ * - Excel spreadsheets (.xlsx)
+ * - PowerPoint presentations (.pptx)
  *
  * Security:
  * - Sensitive paths (SSH keys, credentials, etc.) require user confirmation
@@ -259,6 +282,16 @@ export async function readFile(
             };
         }
 
+        const legacyOfficeWarning = getLegacyOfficeWarning(resolvedPath);
+        if (legacyOfficeWarning) {
+            return {
+                query,
+                file: filePath,
+                uri: filePath,
+                compiled: legacyOfficeWarning,
+            };
+        }
+
         // Check if file is an image
         if (isImageFile(resolvedPath)) {
             try {
@@ -303,7 +336,7 @@ export async function readFile(
             try {
                 log.debug(`[PDF] Reading: ${resolvedPath}`);
                 const loader = new PDFLoader(resolvedPath, {
-                    splitPages: false,
+                    splitPages: true,
                 });
                 const docs = await loader.load();
 
@@ -316,7 +349,9 @@ export async function readFile(
                     };
                 }
 
-                const rawPdfText = docs.map(doc => doc.pageContent).join('\n\n');
+                const rawPdfText = docs
+                    .map((doc, index) => `--- Page ${index + 1} ---\n${doc.pageContent}`)
+                    .join('\n\n');
                 // Sanitize to remove problematic Unicode characters that break PostgreSQL JSON storage
                 const pdfText = sanitizeTextForJson(rawPdfText);
                 const pageCount = (docs[0]?.metadata as any)?.pdf?.totalPages || docs.length;
@@ -428,7 +463,7 @@ export async function readFile(
                     };
                 }
 
-                const xlsxText = sheetsText.join('\n\n');
+                const xlsxText = sanitizeTextForJson(sheetsText.join('\n\n'));
                 log.debug(`[XLSX] Extracted ${xlsxText.length} characters from ${sheetCount} sheet(s)`);
 
                 const filterResult = applyLineFilter(xlsxText, offset, limit);

@@ -31,6 +31,23 @@ Open [http://localhost:6464](http://localhost:6464) in your browser.
 
 Copy `.env.example` to `.env`. The app auto-loads `.env` via Bun — no dotenv needed.
 
+#### Local / Offline LLM setup (OpenAI-compatible APIs)
+
+For local model servers (Ollama, vLLM, LM Studio, LocalAI), run Pipali in anon mode and point it at your local OpenAI-compatible endpoint:
+
+```bash
+PIPALI_ANON_MODE=true
+OPENAI_BASE_URL=http://127.0.0.1:11434/v1
+OPENAI_API_KEY=not-required
+OPENAI_MODELS=qwen2.5:14b-instruct,llava:13b
+OPENAI_VISION_ENABLED=true
+```
+
+Recommended model coverage for document-heavy workflows:
+- **Primary text reasoning model** (strong long-context instruction model)
+- **Vision-capable model** (for image understanding and scanned-document workflows)
+- **Embedding model** (if running an external vector DB / RAG index service)
+
 ### Tests
 
 ```bash

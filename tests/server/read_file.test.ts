@@ -254,6 +254,10 @@ describe('readFile', () => {
             { ext: '.jpg', mimeType: 'image/jpeg' },
             { ext: '.jpeg', mimeType: 'image/jpeg' },
             { ext: '.webp', mimeType: 'image/webp' },
+            { ext: '.gif', mimeType: 'image/gif' },
+            { ext: '.bmp', mimeType: 'image/bmp' },
+            { ext: '.tif', mimeType: 'image/tiff' },
+            { ext: '.tiff', mimeType: 'image/tiff' },
         ])('should return correct mime type for $ext extension', async ({ ext, mimeType }) => {
             const imageFile = path.join(testDir, `test-image${ext}`);
             // Minimal image bytes (just enough to create a file)
@@ -403,6 +407,29 @@ describe('readFile', () => {
             const { sheets } = parseExcelOutput(result.compiled as string);
 
             expect(sheets[0]!.csvRows).toEqual(['10,20,30']);
+        });
+    });
+
+    describe('legacy office formats', () => {
+        test.each([
+            {
+                ext: '.doc',
+                expected: "uses legacy .doc format. Please convert it to .docx",
+            },
+            {
+                ext: '.xls',
+                expected: "uses legacy .xls format. Please convert it to .xlsx",
+            },
+            {
+                ext: '.ppt',
+                expected: "uses legacy .ppt format. Please convert it to .pptx",
+            },
+        ])('should show conversion guidance for $ext files', async ({ ext, expected }) => {
+            const legacyFile = path.join(testDir, `legacy${ext}`);
+            await fs.writeFile(legacyFile, 'legacy content');
+
+            const result = await readFile({ path: legacyFile });
+            expect(result.compiled).toContain(expected);
         });
     });
 });

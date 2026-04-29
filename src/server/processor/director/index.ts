@@ -149,7 +149,7 @@ export async function buildSystemPrompt(args: {
 const builtInTools: ToolDefinition[] = [
     {
         name: 'view_file',
-        description: 'To view the contents of specific files including text, images, PDFs, and Office documents. For text files, use offset and limit to efficiently read large files. Supports images (jpg, jpeg, png, webp), PDFs, Word docs, Excel spreadsheets, and PowerPoint presentations.',
+        description: 'To view the contents of specific files including text, images, PDFs, and Office documents. For text files, use offset and limit to efficiently read large files. Supports images (jpg, jpeg, png, webp, gif, bmp, tif, tiff), PDFs, Word (.docx), Excel (.xlsx), and PowerPoint (.pptx).',
         schema: {
             type: 'object',
             properties: {
